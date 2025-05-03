@@ -1,5 +1,5 @@
 import { Sidebar, SidebarContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
-import { Briefcase, Rocket, Settings, LineChart, Home, Target, FileText, DollarSign, Building, CreditCard, PiggyBank, MapPin, Landmark, Users, ClipboardCheck, Banknote, ShieldCheck, ShoppingBag, BarChart2, Laptop, Siren, HeartHandshake, LandmarkIcon } from 'lucide-react';
+import { Briefcase, Rocket, Settings, LineChart, Home as HomeIcon, Target, FileText, DollarSign, Building, CreditCard, PiggyBank, MapPin, Landmark, Users, ClipboardCheck, Banknote, ShieldCheck, ShoppingBag, BarChart2, Laptop, Siren, HeartHandshake, LandmarkIcon } from 'lucide-react'; // Renamed Home to HomeIcon
 import { Button } from "@/components/ui/button";
 import { AIBusinessAdvisor } from "@/components/AIBusinessAdvisor";
 import { InteractiveChecklist } from "@/components/InteractiveChecklist"; // Import Checklist
@@ -70,7 +70,7 @@ export default function Home() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton href="#top" isActive tooltip="Home">
-                  <Home />
+                  <HomeIcon /> {/* Updated icon usage */}
                   <span>Home</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
