@@ -1,87 +1,180 @@
 
+"use client"; // Add "use client" for useState and useEffect
+
+import React, { useState, useEffect } from 'react';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
-import { Briefcase, Rocket, Settings, LineChart, Home as HomeIcon, Target, FileText, DollarSign, Building, CreditCard, PiggyBank, MapPin, Landmark, Users, ClipboardCheck, Banknote, ShieldCheck, ShoppingBag, BarChart2, Laptop, Siren, HeartHandshake, LandmarkIcon, Award, Trophy, Star, CheckCircle } from 'lucide-react'; // Keep top-level imports for inline rendering in this Server Component
+import { Briefcase, Rocket, Settings, LineChart, Home as HomeIcon, Target, FileText, DollarSign, Building, CreditCard, PiggyBank, MapPin, Landmark, Users, ClipboardCheck, Banknote, ShieldCheck, ShoppingBag, BarChart2, Laptop, Siren, HeartHandshake, LandmarkIcon, Award, Trophy, Star, CheckCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { AIBusinessAdvisor, type AdvisorTaskInfo } from "@/components/AIBusinessAdvisor";
-import { InteractiveChecklist, type TaskWithAchievement } from "@/components/InteractiveChecklist";
 import { ResourceHub } from "@/components/ResourceHub";
 import { AchievementsDisplay } from "@/components/AchievementsDisplay";
 import type { Achievement } from "@/lib/achievementUtils";
 import { IconRenderer } from "@/components/IconRenderer";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { updateAchievementStatus, getAchievementStatus } from '@/lib/achievementUtils';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+
+// Define an extended task type for the wizard
+export interface WizardTask extends TaskWithAchievement {
+  stageKey: 'plan' | 'launch' | 'manage' | 'grow';
+  stageTitle: string;
+  stageIcon: React.ElementType;
+  details: React.ReactNode; // To store the detailed description for each task
+}
+
+interface TaskWithAchievement {
+  id: string;
+  label: string;
+  completed: boolean;
+  achievementName: string;
+  achievementDescription: string;
+  achievementIconName: string;
+}
 
 
-// Define tasks for each stage with achievement details (using icon names)
-const planTasks: TaskWithAchievement[] = [
-  { id: 'market-research', label: 'Market research and competitive analysis', completed: false, achievementName: 'Market Maven', achievementDescription: 'Completed initial market research.', achievementIconName: 'Target' },
-  { id: 'business-plan', label: 'Write your business plan', completed: false, achievementName: 'Master Planner', achievementDescription: 'Drafted the business plan.', achievementIconName: 'FileText' },
-  { id: 'startup-costs', label: 'Calculate your startup costs', completed: false, achievementName: 'Cost Calculator', achievementDescription: 'Calculated initial startup costs.', achievementIconName: 'DollarSign' },
-  { id: 'business-credit', label: 'Establish business credit', completed: false, achievementName: 'Credit Conscious', achievementDescription: 'Learned about business credit.', achievementIconName: 'CreditCard' },
-  { id: 'fund-business', label: 'Fund your business', completed: false, achievementName: 'Funding Finder', achievementDescription: 'Explored funding options.', achievementIconName: 'PiggyBank' },
-  { id: 'buy-existing', label: 'Consider buying an existing business or franchise', completed: false, achievementName: 'Strategic Thinker', achievementDescription: 'Considered buying vs. starting.', achievementIconName: 'Building' },
+// Define tasks for each stage with achievement details, stageKey, stageTitle, and details
+const planTasksRaw: Omit<WizardTask, 'completed' | 'stageIcon'>[] = [
+  { id: 'market-research', label: 'Market research and competitive analysis', achievementName: 'Market Maven', achievementDescription: 'Completed initial market research.', achievementIconName: 'Target', stageKey: 'plan', stageTitle: 'Plan Your Business', details: (<ul><li><Target className="inline w-4 h-4 mr-1 text-accent"/>Understand your customers, industry, and competitors.</li></ul>) },
+  { id: 'business-plan', label: 'Write your business plan', achievementName: 'Master Planner', achievementDescription: 'Drafted the business plan.', achievementIconName: 'FileText', stageKey: 'plan', stageTitle: 'Plan Your Business', details: (<ul><li><FileText className="inline w-4 h-4 mr-1 text-accent"/>Create a roadmap for your business strategy and financials.</li></ul>) },
+  { id: 'startup-costs', label: 'Calculate your startup costs', achievementName: 'Cost Calculator', achievementDescription: 'Calculated initial startup costs.', achievementIconName: 'DollarSign', stageKey: 'plan', stageTitle: 'Plan Your Business', details: (<ul><li><DollarSign className="inline w-4 h-4 mr-1 text-accent"/>Estimate the initial investment needed.</li></ul>) },
+  { id: 'business-credit', label: 'Establish business credit', achievementName: 'Credit Conscious', achievementDescription: 'Learned about business credit.', achievementIconName: 'CreditCard', stageKey: 'plan', stageTitle: 'Plan Your Business', details: (<ul><li><CreditCard className="inline w-4 h-4 mr-1 text-accent"/>Learn how to build credit for your company.</li></ul>) },
+  { id: 'fund-business', label: 'Fund your business', achievementName: 'Funding Finder', achievementDescription: 'Explored funding options.', achievementIconName: 'PiggyBank', stageKey: 'plan', stageTitle: 'Plan Your Business', details: (<ul><li><PiggyBank className="inline w-4 h-4 mr-1 text-accent"/>Explore loans, grants, and investment options.</li></ul>) },
+  { id: 'buy-existing', label: 'Consider buying an existing business or franchise', achievementName: 'Strategic Thinker', achievementDescription: 'Considered buying vs. starting.', achievementIconName: 'Building', stageKey: 'plan', stageTitle: 'Plan Your Business', details: (<ul><li><Building className="inline w-4 h-4 mr-1 text-accent"/>Weigh the pros and cons of buying vs. starting from scratch.</li></ul>) },
 ];
 
-const launchTasks: TaskWithAchievement[] = [
-  { id: 'pick-location', label: 'Pick your business location', completed: false, achievementName: 'Location Scout', achievementDescription: 'Chose a business location.', achievementIconName: 'MapPin' },
-  { id: 'choose-structure', label: 'Choose a business structure', completed: false, achievementName: 'Structure Selector', achievementDescription: 'Selected a legal structure.', achievementIconName: 'Landmark' },
-  { id: 'choose-name', label: 'Choose your business name', completed: false, achievementName: 'Name Giver', achievementDescription: 'Picked a business name.', achievementIconName: 'FileText' }, 
-  { id: 'register-business', label: 'Register your business', completed: false, achievementName: 'Official Registrant', achievementDescription: 'Registered the business.', achievementIconName: 'ClipboardCheck' },
-  { id: 'get-tax-ids', label: 'Get federal and state tax ID numbers', completed: false, achievementName: 'Tax ID Acquirer', achievementDescription: 'Obtained necessary tax IDs.', achievementIconName: 'DollarSign' }, 
-  { id: 'apply-licenses', label: 'Apply for licenses and permits', completed: false, achievementName: 'License Applicant', achievementDescription: 'Applied for required licenses.', achievementIconName: 'FileText' }, 
-  { id: 'open-bank-account', label: 'Open a business bank account', completed: false, achievementName: 'Bank Opener', achievementDescription: 'Opened a business bank account.', achievementIconName: 'CreditCard' }, 
-  { id: 'get-insurance', label: 'Get business insurance', completed: false, achievementName: 'Insured Entrepreneur', achievementDescription: 'Secured business insurance.', achievementIconName: 'ShieldCheck' },
+const launchTasksRaw: Omit<WizardTask, 'completed' | 'stageIcon'>[] = [
+  { id: 'pick-location', label: 'Pick your business location', achievementName: 'Location Scout', achievementDescription: 'Chose a business location.', achievementIconName: 'MapPin', stageKey: 'launch', stageTitle: 'Launch Your Business', details: (<ul><li><MapPin className="inline w-4 h-4 mr-1 text-accent"/>Choose the right physical or virtual space.</li></ul>) },
+  { id: 'choose-structure', label: 'Choose a business structure', achievementName: 'Structure Selector', achievementDescription: 'Selected a legal structure.', achievementIconName: 'Landmark', stageKey: 'launch', stageTitle: 'Launch Your Business', details: (<ul><li><Landmark className="inline w-4 h-4 mr-1 text-accent"/>Select your legal entity (sole prop, LLC, etc.).</li></ul>) },
+  { id: 'choose-name', label: 'Choose your business name', achievementName: 'Name Giver', achievementDescription: 'Picked a business name.', achievementIconName: 'FileText', stageKey: 'launch', stageTitle: 'Launch Your Business', details: (<ul><li><FileText className="inline w-4 h-4 mr-1 text-accent"/>Pick and register your business name.</li></ul>) },
+  { id: 'register-business', label: 'Register your business', achievementName: 'Official Registrant', achievementDescription: 'Registered the business.', achievementIconName: 'ClipboardCheck', stageKey: 'launch', stageTitle: 'Launch Your Business', details: (<ul><li><ClipboardCheck className="inline w-4 h-4 mr-1 text-accent"/>Formally register your business with government agencies.</li></ul>) },
+  { id: 'get-tax-ids', label: 'Get federal and state tax ID numbers', achievementName: 'Tax ID Acquirer', achievementDescription: 'Obtained necessary tax IDs.', achievementIconName: 'DollarSign', stageKey: 'launch', stageTitle: 'Launch Your Business', details: (<ul><li><DollarSign className="inline w-4 h-4 mr-1 text-accent"/>Obtain federal (EIN) and state tax identification numbers.</li></ul>) },
+  { id: 'apply-licenses', label: 'Apply for licenses and permits', achievementName: 'License Applicant', achievementDescription: 'Applied for required licenses.', achievementIconName: 'FileText', stageKey: 'launch', stageTitle: 'Launch Your Business', details: (<ul><li><FileText className="inline w-4 h-4 mr-1 text-accent"/>Secure necessary operational licenses.</li></ul>) },
+  { id: 'open-bank-account', label: 'Open a business bank account', achievementName: 'Bank Opener', achievementDescription: 'Opened a business bank account.', achievementIconName: 'CreditCard', stageKey: 'launch', stageTitle: 'Launch Your Business', details: (<ul><li><CreditCard className="inline w-4 h-4 mr-1 text-accent"/>Open a dedicated account for business finances.</li></ul>) },
+  { id: 'get-insurance', label: 'Get business insurance', achievementName: 'Insured Entrepreneur', achievementDescription: 'Secured business insurance.', achievementIconName: 'ShieldCheck', stageKey: 'launch', stageTitle: 'Launch Your Business', details: (<ul><li><ShieldCheck className="inline w-4 h-4 mr-1 text-accent"/>Get appropriate coverage to protect your business.</li></ul>) },
 ];
 
-const manageTasks: TaskWithAchievement[] = [
-  { id: 'manage-finances', label: 'Manage your finances', completed: false, achievementName: 'Finance Manager', achievementDescription: 'Started managing finances.', achievementIconName: 'Banknote' },
-  { id: 'hire-employees', label: 'Hire and manage employees', completed: false, achievementName: 'Team Builder', achievementDescription: 'Learned about hiring.', achievementIconName: 'Users' },
-  { id: 'pay-taxes', label: 'Pay taxes', completed: false, achievementName: 'Tax Payer', achievementDescription: 'Understood tax obligations.', achievementIconName: 'DollarSign' }, 
-  { id: 'stay-compliant', label: 'Stay legally compliant', completed: false, achievementName: 'Compliance Keeper', achievementDescription: 'Learned about legal compliance.', achievementIconName: 'ShieldCheck' }, 
-  { id: 'buy-assets', label: 'Buy assets and equipment', completed: false, achievementName: 'Asset Acquirer', achievementDescription: 'Considered asset purchasing.', achievementIconName: 'ShoppingBag' },
-  { id: 'marketing-sales', label: 'Marketing and sales', completed: false, achievementName: 'Marketing Strategist', achievementDescription: 'Explored marketing and sales.', achievementIconName: 'BarChart2' },
-  { id: 'ai-small-business', label: 'Explore AI for small business', completed: false, achievementName: 'AI Explorer', achievementDescription: 'Looked into AI tools.', achievementIconName: 'Laptop' },
-  { id: 'cybersecurity', label: 'Strengthen your cybersecurity', completed: false, achievementName: 'Cyber Guardian', achievementDescription: 'Learned about cybersecurity.', achievementIconName: 'ShieldCheck' }, 
-  { id: 'prepare-emergencies', label: 'Prepare for emergencies', completed: false, achievementName: 'Emergency Planner', achievementDescription: 'Prepared for emergencies.', achievementIconName: 'Siren' },
-  { id: 'recover-disasters', label: 'Recover from disasters', completed: false, achievementName: 'Disaster Recoverer', achievementDescription: 'Planned for disaster recovery.', achievementIconName: 'HeartHandshake' },
-  { id: 'close-sell', label: 'Plan for closing or selling your business', completed: false, achievementName: 'Exit Strategist', achievementDescription: 'Considered exit strategies.', achievementIconName: 'ClipboardCheck' }, 
-  { id: 'hire-disabilities', label: 'Consider hiring employees with disabilities', completed: false, achievementName: 'Inclusive Employer', achievementDescription: 'Learned about inclusive hiring.', achievementIconName: 'Users' }, 
+const manageTasksRaw: Omit<WizardTask, 'completed' | 'stageIcon'>[] = [
+  { id: 'manage-finances', label: 'Manage your finances', achievementName: 'Finance Manager', achievementDescription: 'Started managing finances.', achievementIconName: 'Banknote', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><Banknote className="inline w-4 h-4 mr-1 text-accent"/>Track income/expenses, manage cash flow, budget.</li></ul>) },
+  { id: 'hire-employees', label: 'Hire and manage employees', achievementName: 'Team Builder', achievementDescription: 'Learned about hiring.', achievementIconName: 'Users', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><Users className="inline w-4 h-4 mr-1 text-accent"/>Recruit, hire, train, and manage your team.</li></ul>) },
+  { id: 'pay-taxes', label: 'Pay taxes', achievementName: 'Tax Payer', achievementDescription: 'Understood tax obligations.', achievementIconName: 'DollarSign', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><DollarSign className="inline w-4 h-4 mr-1 text-accent"/>Understand obligations and file/pay accurately.</li></ul>) },
+  { id: 'stay-compliant', label: 'Stay legally compliant', achievementName: 'Compliance Keeper', achievementDescription: 'Learned about legal compliance.', achievementIconName: 'ShieldCheck', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><ShieldCheck className="inline w-4 h-4 mr-1 text-accent"/>Adhere to labor laws, regulations, and reporting.</li></ul>) },
+  { id: 'buy-assets', label: 'Buy assets and equipment', achievementName: 'Asset Acquirer', achievementDescription: 'Considered asset purchasing.', achievementIconName: 'ShoppingBag', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><ShoppingBag className="inline w-4 h-4 mr-1 text-accent"/>Purchase and manage necessary business assets.</li></ul>) },
+  { id: 'marketing-sales', label: 'Marketing and sales', achievementName: 'Marketing Strategist', achievementDescription: 'Explored marketing and sales.', achievementIconName: 'BarChart2', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><BarChart2 className="inline w-4 h-4 mr-1 text-accent"/>Attract customers and generate revenue.</li></ul>) },
+  { id: 'ai-small-business', label: 'Explore AI for small business', achievementName: 'AI Explorer', achievementDescription: 'Looked into AI tools.', achievementIconName: 'Laptop', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><Laptop className="inline w-4 h-4 mr-1 text-accent"/>Leverage artificial intelligence tools for efficiency.</li></ul>) },
+  { id: 'cybersecurity', label: 'Strengthen your cybersecurity', achievementName: 'Cyber Guardian', achievementDescription: 'Learned about cybersecurity.', achievementIconName: 'ShieldCheck', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><ShieldCheck className="inline w-4 h-4 mr-1 text-accent"/>Protect your digital assets and customer data.</li></ul>) },
+  { id: 'prepare-emergencies', label: 'Prepare for emergencies', achievementName: 'Emergency Planner', achievementDescription: 'Prepared for emergencies.', achievementIconName: 'Siren', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><Siren className="inline w-4 h-4 mr-1 text-accent"/>Develop contingency plans for unexpected events.</li></ul>) },
+  { id: 'recover-disasters', label: 'Recover from disasters', achievementName: 'Disaster Recoverer', achievementDescription: 'Planned for disaster recovery.', achievementIconName: 'HeartHandshake', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><HeartHandshake className="inline w-4 h-4 mr-1 text-accent"/>Plan for recovery from natural or other disasters.</li></ul>) },
+  { id: 'close-sell', label: 'Plan for closing or selling your business', achievementName: 'Exit Strategist', achievementDescription: 'Considered exit strategies.', achievementIconName: 'ClipboardCheck', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><ClipboardCheck className="inline w-4 h-4 mr-1 text-accent"/>Understand the process for exiting your business.</li></ul>) },
+  { id: 'hire-disabilities', label: 'Consider hiring employees with disabilities', achievementName: 'Inclusive Employer', achievementDescription: 'Learned about inclusive hiring.', achievementIconName: 'Users', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><Users className="inline w-4 h-4 mr-1 text-accent"/>Learn about benefits and resources.</li></ul>) },
 ];
 
-const growTasks: TaskWithAchievement[] = [
-  { id: 'get-more-funding', label: 'Get more funding', completed: false, achievementName: 'Growth Funder', achievementDescription: 'Explored growth funding.', achievementIconName: 'PiggyBank' }, 
-  { id: 'expand-locations', label: 'Expand to new locations', completed: false, achievementName: 'Expansionist', achievementDescription: 'Considered location expansion.', achievementIconName: 'MapPin' }, 
-  { id: 'merge-acquire', label: 'Merge and acquire businesses', completed: false, achievementName: 'M&A Explorer', achievementDescription: 'Learned about mergers/acquisitions.', achievementIconName: 'Building' }, 
-  { id: 'federal-contractor', label: 'Become a federal contractor', completed: false, achievementName: 'Federal Contractor', achievementDescription: 'Explored federal contracting.', achievementIconName: 'Landmark' }, 
-  { id: 'export-products', label: 'Export products', completed: false, achievementName: 'Global Exporter', achievementDescription: 'Considered exporting products.', achievementIconName: 'BarChart2' }, 
-  { id: 'women-owned', label: 'Explore resources for Women-owned businesses', completed: false, achievementName: 'Resourceful Entrepreneur (W)', achievementDescription: 'Explored resources for women.', achievementIconName: 'Users' }, 
-  { id: 'native-american-owned', label: 'Explore resources for Native American-owned businesses', completed: false, achievementName: 'Resourceful Entrepreneur (NA)', achievementDescription: 'Explored resources for Native Americans.', achievementIconName: 'Users' }, 
-  { id: 'veteran-owned', label: 'Explore resources for Veteran-owned businesses', completed: false, achievementName: 'Resourceful Entrepreneur (V)', achievementDescription: 'Explored resources for veterans.', achievementIconName: 'Users' }, 
-  { id: 'military-spouse', label: 'Explore resources for Military spouse businesses', completed: false, achievementName: 'Resourceful Entrepreneur (MS)', achievementDescription: 'Explored resources for military spouses.', achievementIconName: 'Users' }, 
-  { id: 'rural-businesses', label: 'Explore resources for Rural businesses', completed: false, achievementName: 'Resourceful Entrepreneur (R)', achievementDescription: 'Explored resources for rural businesses.', achievementIconName: 'Users' }, 
-  { id: 'minority-owned', label: 'Explore resources for Minority-owned businesses', completed: false, achievementName: 'Resourceful Entrepreneur (M)', achievementDescription: 'Explored resources for minorities.', achievementIconName: 'Users' }, 
+const growTasksRaw: Omit<WizardTask, 'completed' | 'stageIcon'>[] = [
+  { id: 'get-more-funding', label: 'Get more funding', achievementName: 'Growth Funder', achievementDescription: 'Explored growth funding.', achievementIconName: 'PiggyBank', stageKey: 'grow', stageTitle: 'Grow Your Business', details: (<ul><li><PiggyBank className="inline w-4 h-4 mr-1 text-accent"/>Secure capital for expansion activities.</li></ul>) },
+  { id: 'expand-locations', label: 'Expand to new locations', achievementName: 'Expansionist', achievementDescription: 'Considered location expansion.', achievementIconName: 'MapPin', stageKey: 'grow', stageTitle: 'Grow Your Business', details: (<ul><li><MapPin className="inline w-4 h-4 mr-1 text-accent"/>Expand your physical or market reach.</li></ul>) },
+  { id: 'merge-acquire', label: 'Merge and acquire businesses', achievementName: 'M&A Explorer', achievementDescription: 'Learned about mergers/acquisitions.', achievementIconName: 'Building', stageKey: 'grow', stageTitle: 'Grow Your Business', details: (<ul><li><Building className="inline w-4 h-4 mr-1 text-accent"/>Grow through strategic acquisitions or mergers.</li></ul>) },
+  { id: 'federal-contractor', label: 'Become a federal contractor', achievementName: 'Federal Contractor', achievementDescription: 'Explored federal contracting.', achievementIconName: 'Landmark', stageKey: 'grow', stageTitle: 'Grow Your Business', details: (<ul><li><Landmark className="inline w-4 h-4 mr-1 text-accent"/>Bid on government contracts.</li></ul>) },
+  { id: 'export-products', label: 'Export products', achievementName: 'Global Exporter', achievementDescription: 'Considered exporting products.', achievementIconName: 'BarChart2', stageKey: 'grow', stageTitle: 'Grow Your Business', details: (<ul><li><BarChart2 className="inline w-4 h-4 mr-1 text-accent"/>Sell your products or services internationally.</li></ul>) },
+  { id: 'women-owned', label: 'Explore resources for Women-owned businesses', achievementName: 'Resourceful Entrepreneur (W)', achievementDescription: 'Explored resources for women.', achievementIconName: 'Users', stageKey: 'grow', stageTitle: 'Grow Your Business', details: (<ul><li><Users className="inline w-4 h-4 mr-1 text-accent"/>Access resources tailored for women entrepreneurs.</li></ul>) },
+  { id: 'native-american-owned', label: 'Explore resources for Native American-owned businesses', achievementName: 'Resourceful Entrepreneur (NA)', achievementDescription: 'Explored resources for Native Americans.', achievementIconName: 'Users', stageKey: 'grow', stageTitle: 'Grow Your Business', details: (<ul><li><Users className="inline w-4 h-4 mr-1 text-accent"/>Access resources for Native American entrepreneurs.</li></ul>) },
+  { id: 'veteran-owned', label: 'Explore resources for Veteran-owned businesses', achievementName: 'Resourceful Entrepreneur (V)', achievementDescription: 'Explored resources for veterans.', achievementIconName: 'Users', stageKey: 'grow', stageTitle: 'Grow Your Business', details: (<ul><li><Users className="inline w-4 h-4 mr-1 text-accent"/>Access resources for veteran entrepreneurs.</li></ul>) },
+  { id: 'military-spouse', label: 'Explore resources for Military spouse businesses', achievementName: 'Resourceful Entrepreneur (MS)', achievementDescription: 'Explored resources for military spouses.', achievementIconName: 'Users', stageKey: 'grow', stageTitle: 'Grow Your Business', details: (<ul><li><Users className="inline w-4 h-4 mr-1 text-accent"/>Access resources for military spouse entrepreneurs.</li></ul>) },
+  { id: 'rural-businesses', label: 'Explore resources for Rural businesses', achievementName: 'Resourceful Entrepreneur (R)', achievementDescription: 'Explored resources for rural businesses.', achievementIconName: 'Users', stageKey: 'grow', stageTitle: 'Grow Your Business', details: (<ul><li><Users className="inline w-4 h-4 mr-1 text-accent"/>Access resources for rural entrepreneurs.</li></ul>) },
+  { id: 'minority-owned', label: 'Explore resources for Minority-owned businesses', achievementName: 'Resourceful Entrepreneur (M)', achievementDescription: 'Explored resources for minorities.', achievementIconName: 'Users', stageKey: 'grow', stageTitle: 'Grow Your Business', details: (<ul><li><Users className="inline w-4 h-4 mr-1 text-accent"/>Access resources for minority entrepreneurs.</li></ul>) },
 ];
 
-const allAchievements: Achievement[] = [
-    ...planTasks,
-    ...launchTasks,
-    ...manageTasks,
-    ...growTasks,
-].map(task => ({
+const stageIcons = {
+  plan: Briefcase,
+  launch: Rocket,
+  manage: Settings,
+  grow: LineChart,
+};
+
+const wizardTasks: WizardTask[] = [
+  ...planTasksRaw.map(task => ({ ...task, completed: false, stageIcon: stageIcons[task.stageKey] })),
+  ...launchTasksRaw.map(task => ({ ...task, completed: false, stageIcon: stageIcons[task.stageKey] })),
+  ...manageTasksRaw.map(task => ({ ...task, completed: false, stageIcon: stageIcons[task.stageKey] })),
+  ...growTasksRaw.map(task => ({ ...task, completed: false, stageIcon: stageIcons[task.stageKey] })),
+];
+
+
+const allAchievements: Achievement[] = wizardTasks.map(task => ({
     id: task.id,
     name: task.achievementName,
     description: task.achievementDescription,
     iconName: task.achievementIconName,
 }));
 
-const allTasksForAdvisor: AdvisorTaskInfo[] = [
-  ...planTasks,
-  ...launchTasks,
-  ...manageTasks,
-  ...growTasks,
-].map(task => ({ id: task.id, label: task.label }));
+const allTasksForAdvisor: AdvisorTaskInfo[] = wizardTasks.map(task => ({
+  id: task.id,
+  label: task.label,
+}));
 
 
 export default function HomePage() {
+  const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
+  const [tasks, setTasks] = useState<WizardTask[]>(() => {
+    // Load progress from localStorage on component mount
+    if (typeof window !== 'undefined') {
+      return wizardTasks.map(task => ({
+        ...task,
+        completed: getAchievementStatus(task.id),
+      }));
+    }
+    return wizardTasks.map(task => ({ ...task, completed: false }));
+  });
+
+  useEffect(() => {
+    // Listen for external achievement updates (e.g., from AIBusinessAdvisor if it modifies tasks)
+    const handleExternalAchievementUpdate = (event: Event) => {
+      if (event instanceof CustomEvent) {
+        const { taskId, completed } = event.detail;
+        setTasks(prevTasks =>
+          prevTasks.map(task =>
+            task.id === taskId ? { ...task, completed } : task
+          )
+        );
+      }
+    };
+    window.addEventListener('achievementUpdate', handleExternalAchievementUpdate);
+    return () => {
+      window.removeEventListener('achievementUpdate', handleExternalAchievementUpdate);
+    };
+  }, []);
+
+  const handleCheckChange = (taskId: string) => {
+    setTasks(prevTasks => {
+      const updatedTasks = prevTasks.map(task =>
+        task.id === taskId ? { ...task, completed: !task.completed } : task
+      );
+      const changedTask = updatedTasks.find(task => task.id === taskId);
+      if (changedTask) {
+        updateAchievementStatus(changedTask.id, changedTask.completed);
+        window.dispatchEvent(new CustomEvent('achievementUpdate', { detail: { taskId: changedTask.id, completed: changedTask.completed } }));
+      }
+      return updatedTasks;
+    });
+  };
+
+  const goToNextTask = () => {
+    setCurrentTaskIndex(prev => Math.min(prev + 1, tasks.length - 1));
+  };
+
+  const goToPreviousTask = () => {
+    setCurrentTaskIndex(prev => Math.max(prev - 1, 0));
+  };
+
+  const currentTask = tasks[currentTaskIndex];
+  const CurrentStageIcon = currentTask.stageIcon;
+
+  const overallProgress = tasks.length > 0 ? (tasks.filter(t => t.completed).length / tasks.length) * 100 : 0;
+  const tasksInCurrentStage = tasks.filter(t => t.stageKey === currentTask.stageKey);
+  const completedInCurrentStage = tasksInCurrentStage.filter(t => t.completed).length;
+  const stageProgress = tasksInCurrentStage.length > 0 ? (completedInCurrentStage / tasksInCurrentStage.length) * 100 : 0;
+
+
   return (
     <div className="flex min-h-screen">
       <Sidebar side="left" variant="sidebar" collapsible="icon">
@@ -100,27 +193,9 @@ export default function HomePage() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton href="#plan" tooltip="Plan Your Business">
-                  <Briefcase />
-                  <span>Plan Your Business</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton href="#launch" tooltip="Launch Your Business">
-                  <Rocket />
-                  <span>Launch Your Business</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton href="#manage" tooltip="Manage Your Business">
-                  <Settings />
-                  <span>Manage Your Business</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton href="#grow" tooltip="Grow Your Business">
-                  <LineChart />
-                  <span>Grow Your Business</span>
+                <SidebarMenuButton href="#wizard" tooltip="Business Wizard">
+                  <Star /> 
+                  <span>Wizard</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
@@ -144,102 +219,64 @@ export default function HomePage() {
            <SidebarTrigger className="md:hidden"/>
         </div>
 
-        <p className="text-muted-foreground mb-8">Your comprehensive guide to planning, launching, managing, and growing your business. Use the navigation on the left to explore different stages, track your achievements, or ask our AI Business Advisor for personalized guidance.</p>
-
+        <p className="text-muted-foreground mb-8">Your comprehensive guide to planning, launching, managing, and growing your business. Start with the wizard below, track your achievements, or ask our AI Business Advisor for personalized guidance.</p>
+        
         <AIBusinessAdvisor allTasks={allTasksForAdvisor} />
 
-        <Tabs defaultValue="plan" className="mt-12">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
-            <TabsTrigger value="plan" className="flex items-center gap-2 py-2.5">
-              <Briefcase className="w-4 h-4"/> Plan
-            </TabsTrigger>
-            <TabsTrigger value="launch" className="flex items-center gap-2 py-2.5">
-              <Rocket className="w-4 h-4"/> Launch
-            </TabsTrigger>
-            <TabsTrigger value="manage" className="flex items-center gap-2 py-2.5">
-              <Settings className="w-4 h-4"/> Manage
-            </TabsTrigger>
-            <TabsTrigger value="grow" className="flex items-center gap-2 py-2.5">
-              <LineChart className="w-4 h-4"/> Grow
-            </TabsTrigger>
-          </TabsList>
+        {/* Business Wizard Section */}
+        <div id="wizard" className="mt-12 pt-12 border-t scroll-mt-20">
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-2xl font-semibold text-primary flex items-center gap-2">
+                <CurrentStageIcon className="w-6 h-6" />
+                {currentTask.stageTitle} - Step {tasks.filter(t => t.stageKey === currentTask.stageKey).findIndex(t => t.id === currentTask.id) + 1} of {tasks.filter(t => t.stageKey === currentTask.stageKey).length}
+              </CardTitle>
+              <CardDescription>Follow these steps to build and grow your business. (Overall Progress: {currentTaskIndex + 1} of {tasks.length})</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <Label htmlFor={`task-${currentTask.id}`} className="text-xl font-semibold text-foreground mb-2 block">
+                  {currentTask.label}
+                </Label>
+                <div className="flex items-center space-x-3 p-3 border rounded-md bg-secondary shadow-sm">
+                  <Checkbox
+                    id={`task-${currentTask.id}`}
+                    checked={currentTask.completed}
+                    onCheckedChange={() => handleCheckChange(currentTask.id)}
+                    aria-labelledby={`task-${currentTask.id}-label`}
+                  />
+                  <p id={`task-${currentTask.id}-label`} className="text-sm text-secondary-foreground flex-1">
+                    Mark this task as completed.
+                  </p>
+                </div>
+              </div>
 
-          <TabsContent value="plan" id="plan" className="pt-6 scroll-mt-20">
-             <h3 className="text-2xl font-semibold mb-2 text-primary flex items-center gap-2"><Briefcase/>Plan Your Business</h3>
-             <p className="text-muted-foreground mb-6">You've got a great idea. Now, make a plan to turn it into a great business.</p>
-             <InteractiveChecklist title="Planning Checklist" tasks={planTasks} stageKey="plan" />
-              <details className="mt-4 ml-4 text-sm">
-                  <summary className="cursor-pointer font-medium text-primary hover:text-accent">Details</summary>
-                  <ul className="list-disc pl-5 mt-2 space-y-1 text-muted-foreground">
-                      <li><Target className="inline w-4 h-4 mr-1 text-accent"/>Market research: Understand your customers, industry, and competitors.</li>
-                      <li><FileText className="inline w-4 h-4 mr-1 text-accent"/>Business plan: Create a roadmap for your business strategy and financials.</li>
-                      <li><DollarSign className="inline w-4 h-4 mr-1 text-accent"/>Startup costs: Estimate the initial investment needed.</li>
-                       <li><CreditCard className="inline w-4 h-4 mr-1 text-accent"/>Business credit: Learn how to build credit for your company.</li>
-                       <li><PiggyBank className="inline w-4 h-4 mr-1 text-accent"/>Funding: Explore loans, grants, and investment options.</li>
-                       <li><Building className="inline w-4 h-4 mr-1 text-accent"/>Buy existing: Weigh the pros and cons of buying vs. starting from scratch.</li>
-                  </ul>
-              </details>
-          </TabsContent>
+              <div className="mt-4 p-4 border rounded-md bg-background text-sm text-muted-foreground space-y-2">
+                 <h4 className="font-semibold text-foreground">Task Details:</h4>
+                {currentTask.details}
+              </div>
+              
+              <Separator className="my-6" />
 
-          <TabsContent value="launch" id="launch" className="pt-6 scroll-mt-20">
-             <h3 className="text-2xl font-semibold mb-2 text-primary flex items-center gap-2"><Rocket/>Launch Your Business</h3>
-             <p className="text-muted-foreground mb-6">Turn your business into a reality. Register, file, and start doing business.</p>
-             <InteractiveChecklist title="Launching Checklist" tasks={launchTasks} stageKey="launch" />
-              <details className="mt-4 ml-4 text-sm">
-                  <summary className="cursor-pointer font-medium text-primary hover:text-accent">Details</summary>
-                   <ul className="list-disc pl-5 mt-2 space-y-1 text-muted-foreground">
-                      <li><MapPin className="inline w-4 h-4 mr-1 text-accent"/>Location: Choose the right physical or virtual space.</li>
-                      <li><Landmark className="inline w-4 h-4 mr-1 text-accent"/>Structure: Select your legal entity (sole prop, LLC, etc.).</li>
-                      <li><FileText className="inline w-4 h-4 mr-1 text-accent"/>Name: Pick and register your business name.</li>
-                      <li><ClipboardCheck className="inline w-4 h-4 mr-1 text-accent"/>Registration: Formally register your business with government agencies.</li>
-                      <li><DollarSign className="inline w-4 h-4 mr-1 text-accent"/>Tax IDs: Obtain federal (EIN) and state tax identification numbers.</li>
-                      <li><FileText className="inline w-4 h-4 mr-1 text-accent"/>Licenses/Permits: Secure necessary operational licenses.</li>
-                      <li><CreditCard className="inline w-4 h-4 mr-1 text-accent"/>Bank Account: Open a dedicated account for business finances.</li>
-                      <li><ShieldCheck className="inline w-4 h-4 mr-1 text-accent"/>Insurance: Get appropriate coverage to protect your business.</li>
-                   </ul>
-              </details>
-          </TabsContent>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Stage Progress ({currentTask.stageTitle}):</p>
+                <Progress value={stageProgress} className="w-full h-2 mb-4" />
+                <p className="text-sm text-muted-foreground mb-1">Overall Progress:</p>
+                <Progress value={overallProgress} className="w-full h-2" />
+              </div>
 
-          <TabsContent value="manage" id="manage" className="pt-6 scroll-mt-20">
-             <h3 className="text-2xl font-semibold mb-2 text-primary flex items-center gap-2"><Settings/>Manage Your Business</h3>
-             <p className="text-muted-foreground mb-6">Run your business like a boss. Master day-to-day operations and prepare for success.</p>
-             <InteractiveChecklist title="Management Checklist" tasks={manageTasks} stageKey="manage" />
-              <details className="mt-4 ml-4 text-sm">
-                  <summary className="cursor-pointer font-medium text-primary hover:text-accent">Details</summary>
-                  <ul className="list-disc pl-5 mt-2 space-y-1 text-muted-foreground">
-                     <li><Banknote className="inline w-4 h-4 mr-1 text-accent"/>Finances: Track income/expenses, manage cash flow, budget.</li>
-                     <li><Users className="inline w-4 h-4 mr-1 text-accent"/>Employees: Recruit, hire, train, and manage your team.</li>
-                     <li><DollarSign className="inline w-4 h-4 mr-1 text-accent"/>Taxes: Understand obligations and file/pay accurately.</li>
-                     <li><ShieldCheck className="inline w-4 h-4 mr-1 text-accent"/>Compliance: Adhere to labor laws, regulations, and reporting.</li>
-                     <li><ShoppingBag className="inline w-4 h-4 mr-1 text-accent"/>Assets/Equipment: Purchase and manage necessary business assets.</li>
-                     <li><BarChart2 className="inline w-4 h-4 mr-1 text-accent"/>Marketing/Sales: Attract customers and generate revenue.</li>
-                     <li><Laptop className="inline w-4 h-4 mr-1 text-accent"/>AI: Leverage artificial intelligence tools for efficiency.</li>
-                     <li><ShieldCheck className="inline w-4 h-4 mr-1 text-accent"/>Cybersecurity: Protect your digital assets and customer data.</li>
-                     <li><Siren className="inline w-4 h-4 mr-1 text-accent"/>Emergencies: Develop contingency plans for unexpected events.</li>
-                     <li><HeartHandshake className="inline w-4 h-4 mr-1 text-accent"/>Disasters: Plan for recovery from natural or other disasters.</li>
-                     <li><ClipboardCheck className="inline w-4 h-4 mr-1 text-accent"/>Close/Sell: Understand the process for exiting your business.</li>
-                     <li><Users className="inline w-4 h-4 mr-1 text-accent"/>Disabilities Hiring: Learn about benefits and resources.</li>
-                  </ul>
-              </details>
-          </TabsContent>
+              <div className="flex justify-between mt-6">
+                <Button onClick={goToPreviousTask} disabled={currentTaskIndex === 0} variant="outline">
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Previous Task
+                </Button>
+                <Button onClick={goToNextTask} disabled={currentTaskIndex === tasks.length - 1} className="bg-primary hover:bg-primary/90">
+                  Next Task <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-          <TabsContent value="grow" id="grow" className="pt-6 scroll-mt-20">
-             <h3 className="text-2xl font-semibold mb-2 text-primary flex items-center gap-2"><LineChart/>Grow Your Business</h3>
-             <p className="text-muted-foreground mb-6">When business is good, it's time to expand. Find new funding, locations, and customers.</p>
-             <InteractiveChecklist title="Growth Checklist" tasks={growTasks} stageKey="grow" />
-              <details className="mt-4 ml-4 text-sm">
-                   <summary className="cursor-pointer font-medium text-primary hover:text-accent">Details</summary>
-                  <ul className="list-disc pl-5 mt-2 space-y-1 text-muted-foreground">
-                      <li><PiggyBank className="inline w-4 h-4 mr-1 text-accent"/>More Funding: Secure capital for expansion activities.</li>
-                      <li><MapPin className="inline w-4 h-4 mr-1 text-accent"/>New Locations: Expand your physical or market reach.</li>
-                      <li><Building className="inline w-4 h-4 mr-1 text-accent"/>Merge/Acquire: Grow through strategic acquisitions or mergers.</li>
-                      <li><Landmark className="inline w-4 h-4 mr-1 text-accent"/>Federal Contracting: Bid on government contracts.</li>
-                      <li><BarChart2 className="inline w-4 h-4 mr-1 text-accent"/>Exporting: Sell your products or services internationally.</li>
-                       <li><Users className="inline w-4 h-4 mr-1 text-accent"/>Specific Groups: Access resources tailored for women, Native Americans, veterans, military spouses, rural, and minority entrepreneurs.</li>
-                  </ul>
-              </details>
-          </TabsContent>
-        </Tabs>
 
         {/* Achievements Section */}
         <div id="achievements" className="mt-12 pt-12 border-t scroll-mt-20">
@@ -256,5 +293,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    
