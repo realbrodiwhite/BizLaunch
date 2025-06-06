@@ -1,9 +1,9 @@
 
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getAuth, connectAuthEmulator } from "firebase/auth";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getStorage, connectStorageEmulator } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -23,4 +23,21 @@ if (!getApps().length) {
   app = getApp();
 }
 
-const auth = getAuth
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+// If you want to use Firebase emulators during development, uncomment the lines below:
+// if (process.env.NODE_ENV === 'development') {
+//   try {
+//     // Make sure to run: firebase emulators:start
+//     connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
+//     connectFirestoreEmulator(db, "localhost", 8080);
+//     connectStorageEmulator(storage, "localhost", 9199);
+//     console.log("Firebase emulators connected");
+//   } catch (error) {
+//     console.error("Error connecting to Firebase emulators:", error);
+//   }
+// }
+
+export { app, auth, db, storage };
