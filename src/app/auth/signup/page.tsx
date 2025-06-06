@@ -2,12 +2,12 @@
 "use client";
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
@@ -19,6 +19,8 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DraftingCompass, UserPlus } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
+import { auth } from '@/lib/firebase'; // Import Firebase auth instance
+import { createUserWithEmailAndPassword } from 'firebase/auth'; // Import Firebase auth function
 
 const signUpFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -32,6 +34,7 @@ const signUpFormSchema = z.object({
 type SignUpFormValues = z.infer<typeof signUpFormSchema>;
 
 export default function SignUpPage() {
+  const router = useRouter();
   const form = useForm<SignUpFormValues>({
     resolver: zodResolver(signUpFormSchema),
     defaultValues: {
@@ -41,14 +44,30 @@ export default function SignUpPage() {
     },
   });
 
-  function onSubmit(data: SignUpFormValues) {
-    console.log("Sign Up Data:", data);
-    // TODO: Implement Firebase Sign Up logic here
-    // Remember to only pass email and password to Firebase, not confirmPassword
-    toast({
-      title: "Sign Up Submitted (Dev)",
-      description: "Sign-up logic needs to be connected to Firebase.",
-    });
+  async function onSubmit(data: SignUpFormValues) {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      console.log("Sign Up Successful:", userCredential.user);
+      toast({
+        title: "Account Created Successfully!",
+        description: "You can now sign in.",
+      });
+      // Optionally, redirect to sign-in page or dashboard
+      router.push('/auth/signin'); 
+    } catch (error: any) {
+      console.error("Sign Up Error:", error);
+      let errorMessage = "Failed to create account. Please try again.";
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = "This email address is already in use.";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = "The password is too weak. Please choose a stronger password.";
+      }
+      toast({
+        variant: "destructive",
+        title: "Sign Up Failed",
+        description: errorMessage,
+      });
+    }
   }
 
   return (
@@ -103,8 +122,8 @@ export default function SignUpPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                <UserPlus className="mr-2 h-4 w-4" /> Sign Up
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Creating Account..." : <><UserPlus className="mr-2 h-4 w-4" /> Sign Up</>}
               </Button>
             </form>
           </Form>

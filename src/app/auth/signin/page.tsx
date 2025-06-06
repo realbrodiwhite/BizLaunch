@@ -2,12 +2,12 @@
 "use client";
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
@@ -19,15 +19,18 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DraftingCompass, LogIn } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
+import { auth } from '@/lib/firebase'; // Import Firebase auth instance
+import { signInWithEmailAndPassword } from 'firebase/auth'; // Import Firebase auth function
 
 const signInFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  password: z.string().min(1, { message: "Password is required." }), // Min 1 for presence
 });
 
 type SignInFormValues = z.infer<typeof signInFormSchema>;
 
 export default function SignInPage() {
+  const router = useRouter();
   const form = useForm<SignInFormValues>({
     resolver: zodResolver(signInFormSchema),
     defaultValues: {
@@ -36,13 +39,30 @@ export default function SignInPage() {
     },
   });
 
-  function onSubmit(data: SignInFormValues) {
-    console.log("Sign In Data:", data);
-    // TODO: Implement Firebase Sign In logic here
-    toast({
-      title: "Sign In Submitted (Dev)",
-      description: "Sign-in logic needs to be connected to Firebase.",
-    });
+  async function onSubmit(data: SignInFormValues) {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      console.log("Sign In Successful:", userCredential.user);
+      toast({
+        title: "Sign In Successful!",
+        description: "Welcome back! Redirecting to dashboard...",
+      });
+      // Redirect to dashboard on successful sign-in
+      router.push('/dashboard'); 
+    } catch (error: any) {
+      console.error("Sign In Error:", error);
+      let errorMessage = "Invalid email or password. Please try again.";
+      // Firebase provides more specific error codes like 'auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential'
+      // You can customize messages based on error.code for better UX
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        errorMessage = "Invalid email or password. Please check your credentials.";
+      }
+      toast({
+        variant: "destructive",
+        title: "Sign In Failed",
+        description: errorMessage,
+      });
+    }
   }
 
   return (
@@ -84,8 +104,8 @@ export default function SignInPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                <LogIn className="mr-2 h-4 w-4" /> Sign In
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={form.formState.isSubmitting}>
+                 {form.formState.isSubmitting ? "Signing In..." : <><LogIn className="mr-2 h-4 w-4" /> Sign In</>}
               </Button>
             </form>
           </Form>
