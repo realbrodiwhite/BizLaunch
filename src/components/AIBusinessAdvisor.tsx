@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Search, Link as LinkIcon, Presentation, FileText as FileTextIcon } from "lucide-react";
+import { Terminal, Search, Link as LinkIcon, Presentation, FileText as FileTextIcon, MessageSquareQuote } from "lucide-react";
 import { generateBusinessPlanDraft } from '@/ai/flows/business-plan-generator';
 import { estimateStartupCosts } from '@/ai/flows/startup-cost-estimator';
 import { summarizeMarketResearch } from '@/ai/flows/market-research-summary';
@@ -27,6 +27,7 @@ import { generateBusinessNames } from '@/ai/flows/business-name-generator';
 import { findGrants, type GrantFinderOutput } from '@/ai/flows/grant-finder-flow';
 import { generatePitchDeckContent, type PitchDeckCreatorOutput } from '@/ai/flows/pitch-deck-creator';
 import { getColoradoRegistrationGuide, type ColoradoRegistrationGuideOutput } from '@/ai/flows/colorado-business-registration-guide';
+import { analyzeText, type TextAnalysisOutput } from '@/ai/flows/text-analyzer-flow';
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAchievementStatus } from '@/lib/achievementUtils';
@@ -44,11 +45,11 @@ interface AIBusinessAdvisorProps {
 }
 
 const FormSchema = z.object({
-  queryType: z.enum(["business_plan", "cost_estimation", "market_research", "name_generation", "grant_finder", "pitch_deck_creator", "colorado_registration_guide"], {
+  queryType: z.enum(["business_plan", "cost_estimation", "market_research", "name_generation", "grant_finder", "pitch_deck_creator", "colorado_registration_guide", "text_analyzer"], {
      required_error: "Please select a query type.",
    }),
   details: z.string().min(10, {
-    message: "Please provide more details (at least 10 characters). This is often the main business description.",
+    message: "Please provide more details or text to analyze (at least 10 characters).",
   }),
   // Conditional fields
   location: z.string().optional(), // Used by cost estimation & grant finder
@@ -61,11 +62,13 @@ const FormSchema = z.object({
   teamOverview: z.string().optional(), // pitch deck
   financialHighlights: z.string().optional(), // pitch deck
   fundingAsk: z.string().optional(), // pitch deck
+  // text_analyzer specific fields
+  analysisType: z.enum(['sentiment', 'keywords_summary']).optional(),
 });
 
 interface AIResponse {
-  type: "text" | "grants" | "pitch_deck" | "structured_guide";
-  content: string | GrantFinderOutput | PitchDeckCreatorOutput | ColoradoRegistrationGuideOutput;
+  type: "text" | "grants" | "pitch_deck" | "structured_guide" | "text_analysis";
+  content: string | GrantFinderOutput | PitchDeckCreatorOutput | ColoradoRegistrationGuideOutput | TextAnalysisOutput;
 }
 
 export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
@@ -89,6 +92,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
       teamOverview: "",
       financialHighlights: "",
       fundingAsk: "",
+      analysisType: "sentiment",
     },
   });
 
@@ -183,6 +187,15 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
           });
           setAiResponse({ type: "structured_guide", content: result });
           break;
+        case 'text_analyzer':
+          if (!data.details) throw new Error("Text to analyze is required.");
+          result = await analyzeText({
+            textToAnalyze: data.details,
+            analysisType: data.analysisType || 'sentiment',
+            completedTasksContext: context,
+          });
+          setAiResponse({ type: "text_analysis", content: result });
+          break;
         default:
           throw new Error("Invalid query type selected.");
       }
@@ -209,6 +222,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
     const startupCostsTaskLabel = "Calculate your startup costs";
     const marketResearchTaskLabel = "Market research and competitive analysis";
     const registerBusinessTaskLabel = "Register your business";
+    const analyzeFeedbackTaskLabel = "Analyze Customer Feedback using AI";
 
     if (fieldName === 'details') {
       switch (queryType) {
@@ -234,6 +248,10 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
           return completedTaskLabels.includes(registerBusinessTaskLabel)
             ? "You've started registering your business. What specific questions do you have about Colorado registration, or which part needs clarification?"
             : "Briefly describe your business. If you know your intended business structure (e.g., LLC, sole proprietorship), include that for more tailored Colorado registration advice.";
+        case 'text_analyzer':
+          return completedTaskLabels.includes(analyzeFeedbackTaskLabel)
+            ? "Paste customer feedback, reviews, or any text here to analyze its sentiment and extract keywords. For example, 'Our customers love the new feature, but some find it a bit confusing to set up.'"
+            : "Enter any text (e.g., customer review, survey response, competitor ad copy) to analyze sentiment and keywords.";
         default:
           return "Provide context for your request...";
       }
@@ -405,6 +423,31 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
     );
   };
 
+  const renderTextAnalysis = (analysisData: TextAnalysisOutput) => {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h4 className="text-md font-semibold text-foreground">Sentiment:</h4>
+          <p className="text-sm text-muted-foreground">{analysisData.sentiment} {analysisData.sentimentScore && `(Score: ${analysisData.sentimentScore.toFixed(2)})`}</p>
+        </div>
+        <div>
+          <h4 className="text-md font-semibold text-foreground">Summary:</h4>
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{analysisData.summary}</p>
+        </div>
+        {analysisData.keywords && analysisData.keywords.length > 0 && (
+          <div>
+            <h4 className="text-md font-semibold text-foreground">Keywords:</h4>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {analysisData.keywords.map((keyword, index) => (
+                <span key={index} className="px-2 py-1 bg-secondary text-secondary-foreground text-xs rounded-full">{keyword}</span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
 
   return (
     <Card className="shadow-lg">
@@ -440,6 +483,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                       <SelectItem value="grant_finder">Find Grant Opportunities</SelectItem>
                       <SelectItem value="pitch_deck_creator">Create Pitch Deck Content</SelectItem>
                       <SelectItem value="colorado_registration_guide">Colorado Business Registration Guide</SelectItem>
+                      <SelectItem value="text_analyzer">Analyze Text (Sentiment/Keywords)</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -458,13 +502,14 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                      queryType === 'cost_estimation' ? "Business Details for Cost Estimation" :
                      queryType === 'pitch_deck_creator' ? "Overall Business Description/Mission" :
                      queryType === 'colorado_registration_guide' ? "Business Description for Registration Guide" :
+                     queryType === 'text_analyzer' ? "Text to Analyze" :
                      "Details / Context for your request"}
                   </FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder={getDynamicPlaceholder('details')}
                       className="resize-none"
-                      rows={queryType === 'pitch_deck_creator' || queryType === 'colorado_registration_guide' ? 3 : 5}
+                      rows={queryType === 'pitch_deck_creator' || queryType === 'colorado_registration_guide' || queryType === 'text_analyzer' ? 5 : 3}
                       {...field}
                     />
                   </FormControl>
@@ -555,6 +600,33 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                   )}
                 />
             )}
+            
+            {/* Fields for Text Analyzer */}
+            {queryType === 'text_analyzer' && (
+              <FormField
+                control={form.control}
+                name="analysisType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Analysis Type</FormLabel>
+                     <Select onValueChange={field.onChange} defaultValue={field.value || 'sentiment'}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select analysis type..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="sentiment">Sentiment & Keyword Analysis</SelectItem>
+                        {/* <SelectItem value="keyword_extraction">Keyword Extraction & Summary</SelectItem> */}
+                        {/* Add more types later if needed */}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
 
             {/* Fields for Pitch Deck Creator */}
             {queryType === 'pitch_deck_creator' && (
@@ -652,13 +724,17 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
         {aiResponse && !isLoading && (
            <Card className="mt-6 bg-secondary">
             <CardHeader>
-              <CardTitle className="text-lg text-secondary-foreground">AI Response</CardTitle>
+              <CardTitle className="text-lg text-secondary-foreground flex items-center gap-2">
+                {aiResponse.type === 'text_analysis' ? <MessageSquareQuote className="w-5 h-5" /> : <Terminal className="w-5 h-5" />}
+                 AI Response
+              </CardTitle>
             </CardHeader>
              <CardContent className="text-secondary-foreground">
               {aiResponse.type === 'text' && <div className="whitespace-pre-wrap">{aiResponse.content as string}</div>}
               {aiResponse.type === 'grants' && renderGrantSuggestions(aiResponse.content as GrantFinderOutput)}
               {aiResponse.type === 'pitch_deck' && renderPitchDeckContent(aiResponse.content as PitchDeckCreatorOutput)}
               {aiResponse.type === 'structured_guide' && renderStructuredGuide(aiResponse.content as ColoradoRegistrationGuideOutput)}
+              {aiResponse.type === 'text_analysis' && renderTextAnalysis(aiResponse.content as TextAnalysisOutput)}
             </CardContent>
           </Card>
         )}
