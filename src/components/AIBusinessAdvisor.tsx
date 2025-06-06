@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Search, Link as LinkIcon, Presentation, FileText as FileTextIcon, MessageSquareQuote } from "lucide-react";
+import { Terminal, Search, Link as LinkIcon, Presentation, FileText as FileTextIcon, MessageSquareQuote, Mail } from "lucide-react";
 import { generateBusinessPlanDraft } from '@/ai/flows/business-plan-generator';
 import { estimateStartupCosts } from '@/ai/flows/startup-cost-estimator';
 import { summarizeMarketResearch } from '@/ai/flows/market-research-summary';
@@ -28,6 +28,7 @@ import { findGrants, type GrantFinderOutput } from '@/ai/flows/grant-finder-flow
 import { generatePitchDeckContent, type PitchDeckCreatorOutput } from '@/ai/flows/pitch-deck-creator';
 import { getColoradoRegistrationGuide, type ColoradoRegistrationGuideOutput } from '@/ai/flows/colorado-business-registration-guide';
 import { analyzeText, type TextAnalysisOutput } from '@/ai/flows/text-analyzer-flow';
+import { draftEmailReply, type DraftEmailReplyOutput } from '@/ai/flows/draft-email-reply-flow';
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAchievementStatus } from '@/lib/achievementUtils';
@@ -45,11 +46,11 @@ interface AIBusinessAdvisorProps {
 }
 
 const FormSchema = z.object({
-  queryType: z.enum(["business_plan", "cost_estimation", "market_research", "name_generation", "grant_finder", "pitch_deck_creator", "colorado_registration_guide", "text_analyzer"], {
+  queryType: z.enum(["business_plan", "cost_estimation", "market_research", "name_generation", "grant_finder", "pitch_deck_creator", "colorado_registration_guide", "text_analyzer", "draft_email_reply"], {
      required_error: "Please select a query type.",
    }),
   details: z.string().min(10, {
-    message: "Please provide more details or text to analyze (at least 10 characters).",
+    message: "Please provide more details (at least 10 characters).",
   }),
   // Conditional fields
   location: z.string().optional(), // Used by cost estimation & grant finder
@@ -57,18 +58,24 @@ const FormSchema = z.object({
   targetMarket: z.string().optional(), // Used by market research & pitch deck
   keywords: z.string().optional(), // Used by name generation
   industry: z.string().optional(), // Used by name generation & grant finder
-  problemSolved: z.string().optional(), // pitch deck
-  solutionOffered: z.string().optional(), // pitch deck
-  teamOverview: z.string().optional(), // pitch deck
-  financialHighlights: z.string().optional(), // pitch deck
-  fundingAsk: z.string().optional(), // pitch deck
-  // text_analyzer specific fields
+  // Pitch deck specific
+  problemSolved: z.string().optional(),
+  solutionOffered: z.string().optional(),
+  teamOverview: z.string().optional(),
+  financialHighlights: z.string().optional(),
+  fundingAsk: z.string().optional(),
+  // Text_analyzer specific
   analysisType: z.enum(['sentiment', 'keywords_summary']).optional(),
+  // Email reply drafter specific
+  customerInquiry: z.string().optional(),
+  businessContext: z.string().optional(),
+  desiredTone: z.enum(["Formal", "Friendly", "Empathetic", "Concise", "Detailed"]).optional(),
+  keyPointsToInclude: z.string().optional(), // Will be split into array
 });
 
 interface AIResponse {
-  type: "text" | "grants" | "pitch_deck" | "structured_guide" | "text_analysis";
-  content: string | GrantFinderOutput | PitchDeckCreatorOutput | ColoradoRegistrationGuideOutput | TextAnalysisOutput;
+  type: "text" | "grants" | "pitch_deck" | "structured_guide" | "text_analysis" | "email_reply";
+  content: string | GrantFinderOutput | PitchDeckCreatorOutput | ColoradoRegistrationGuideOutput | TextAnalysisOutput | DraftEmailReplyOutput;
 }
 
 export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
@@ -81,7 +88,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
     resolver: zodResolver(FormSchema),
      defaultValues: {
       queryType: undefined,
-      details: "",
+      details: "", // This will serve as 'customerInquiry' for email_reply
       location: "",
       businessType: "",
       targetMarket: "",
@@ -93,6 +100,11 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
       financialHighlights: "",
       fundingAsk: "",
       analysisType: "sentiment",
+      // Email reply defaults
+      customerInquiry: "", // Redundant if 'details' is used, but schema needs it
+      businessContext: "",
+      desiredTone: "Friendly",
+      keyPointsToInclude: "",
     },
   });
 
@@ -196,6 +208,18 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
           });
           setAiResponse({ type: "text_analysis", content: result });
           break;
+        case 'draft_email_reply':
+          if (!data.details || !data.businessContext) throw new Error("Customer inquiry and business context are required for drafting an email reply.");
+          const keyPointsArray = data.keyPointsToInclude?.split('\n').filter(point => point.trim() !== '') || [];
+          result = await draftEmailReply({
+            customerInquiry: data.details, // 'details' field serves as customerInquiry
+            businessContext: data.businessContext!,
+            desiredTone: data.desiredTone || 'Friendly',
+            keyPointsToInclude: keyPointsArray,
+            completedTasksContext: context,
+          });
+          setAiResponse({ type: "email_reply", content: result });
+          break;
         default:
           throw new Error("Invalid query type selected.");
       }
@@ -217,14 +241,14 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
     }
   }
 
-  const getDynamicPlaceholder = (fieldName: 'details' | 'problemSolved' | 'solutionOffered' | 'targetMarket' | 'teamOverview' | 'financialHighlights' | 'fundingAsk' ) => {
+  const getDynamicPlaceholder = (fieldName: 'details' | 'problemSolved' | 'solutionOffered' | 'targetMarket' | 'teamOverview' | 'financialHighlights' | 'fundingAsk' | 'businessContext' | 'keyPointsToInclude') => {
     const businessPlanTaskLabel = "Write your business plan";
     const startupCostsTaskLabel = "Calculate your startup costs";
     const marketResearchTaskLabel = "Market research and competitive analysis";
     const registerBusinessTaskLabel = "Register your business";
     const analyzeFeedbackTaskLabel = "Analyze Customer Feedback using AI";
 
-    if (fieldName === 'details') {
+    if (fieldName === 'details') { // This field is repurposed based on queryType
       switch (queryType) {
         case 'business_plan':
           return completedTaskLabels.includes(businessPlanTaskLabel)
@@ -252,6 +276,8 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
           return completedTaskLabels.includes(analyzeFeedbackTaskLabel)
             ? "Paste customer feedback, reviews, or any text here to analyze its sentiment and extract keywords. For example, 'Our customers love the new feature, but some find it a bit confusing to set up.'"
             : "Enter any text (e.g., customer review, survey response, competitor ad copy) to analyze sentiment and keywords.";
+        case 'draft_email_reply':
+          return "Paste the full customer email or message here.";
         default:
           return "Provide context for your request...";
       }
@@ -273,6 +299,14 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
             case 'fundingAsk':
                 return "If seeking investment, how much are you asking for and how will the funds be utilized?";
         }
+    }
+    if (queryType === 'draft_email_reply') {
+      switch(fieldName) {
+        case 'businessContext':
+          return "Briefly describe your business/product/service that the customer is asking about. E.g., 'We are an online bookstore specializing in rare books.'";
+        case 'keyPointsToInclude':
+          return "List any specific points or information you MUST include in the reply, one per line. E.g.,\n- Mention the 10% discount code: SAVE10\n- Our return policy is 30 days";
+      }
     }
     return "Enter details...";
   };
@@ -448,6 +482,23 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
     );
   };
 
+  const renderEmailReply = (emailData: DraftEmailReplyOutput) => {
+    return (
+      <div className="space-y-4">
+        {emailData.suggestedSubjectLine && (
+          <div>
+            <h4 className="text-md font-semibold text-foreground">Suggested Subject:</h4>
+            <p className="text-sm text-muted-foreground p-2 bg-background border rounded-md">{emailData.suggestedSubjectLine}</p>
+          </div>
+        )}
+        <div>
+          <h4 className="text-md font-semibold text-foreground">Draft Reply:</h4>
+          <div className="text-sm text-muted-foreground whitespace-pre-wrap p-3 bg-background border rounded-md">{emailData.draftReply}</div>
+        </div>
+      </div>
+    );
+  };
+
 
   return (
     <Card className="shadow-lg">
@@ -484,6 +535,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                       <SelectItem value="pitch_deck_creator">Create Pitch Deck Content</SelectItem>
                       <SelectItem value="colorado_registration_guide">Colorado Business Registration Guide</SelectItem>
                       <SelectItem value="text_analyzer">Analyze Text (Sentiment/Keywords)</SelectItem>
+                      <SelectItem value="draft_email_reply">Draft Email Reply (Inbound)</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -493,7 +545,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
             
             <FormField
               control={form.control}
-              name="details"
+              name="details" // This field's label and placeholder change based on queryType
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
@@ -503,13 +555,14 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                      queryType === 'pitch_deck_creator' ? "Overall Business Description/Mission" :
                      queryType === 'colorado_registration_guide' ? "Business Description for Registration Guide" :
                      queryType === 'text_analyzer' ? "Text to Analyze" :
+                     queryType === 'draft_email_reply' ? "Customer Inquiry (Email/Message)" :
                      "Details / Context for your request"}
                   </FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder={getDynamicPlaceholder('details')}
                       className="resize-none"
-                      rows={queryType === 'pitch_deck_creator' || queryType === 'colorado_registration_guide' || queryType === 'text_analyzer' ? 5 : 3}
+                      rows={queryType === 'draft_email_reply' || queryType === 'text_analyzer' ? 5 : 3}
                       {...field}
                     />
                   </FormControl>
@@ -617,8 +670,6 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="sentiment">Sentiment & Keyword Analysis</SelectItem>
-                        {/* <SelectItem value="keyword_extraction">Keyword Extraction & Summary</SelectItem> */}
-                        {/* Add more types later if needed */}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -699,6 +750,63 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
               </>
             )}
 
+            {/* Fields for Draft Email Reply */}
+            {queryType === 'draft_email_reply' && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="businessContext"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Your Business Context for this Reply</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder={getDynamicPlaceholder('businessContext')} className="resize-none" rows={2} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="desiredTone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Desired Tone</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value || "Friendly"}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a tone..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Friendly">Friendly</SelectItem>
+                          <SelectItem value="Formal">Formal</SelectItem>
+                          <SelectItem value="Empathetic">Empathetic</SelectItem>
+                          <SelectItem value="Concise">Concise</SelectItem>
+                          <SelectItem value="Detailed">Detailed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="keyPointsToInclude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Key Points to Include (Optional, one per line)</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder={getDynamicPlaceholder('keyPointsToInclude')} className="resize-none" rows={3} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
+
+
             <Button type="submit" disabled={isLoading} className="bg-accent hover:bg-accent/90 text-accent-foreground">
               {isLoading ? "Generating..." : "Get Advice"}
             </Button>
@@ -725,7 +833,9 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
            <Card className="mt-6 bg-secondary">
             <CardHeader>
               <CardTitle className="text-lg text-secondary-foreground flex items-center gap-2">
-                {aiResponse.type === 'text_analysis' ? <MessageSquareQuote className="w-5 h-5" /> : <Terminal className="w-5 h-5" />}
+                {aiResponse.type === 'text_analysis' ? <MessageSquareQuote className="w-5 h-5" /> : 
+                 aiResponse.type === 'email_reply' ? <Mail className="w-5 h-5" /> : 
+                 <Terminal className="w-5 h-5" />}
                  AI Response
               </CardTitle>
             </CardHeader>
@@ -735,6 +845,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
               {aiResponse.type === 'pitch_deck' && renderPitchDeckContent(aiResponse.content as PitchDeckCreatorOutput)}
               {aiResponse.type === 'structured_guide' && renderStructuredGuide(aiResponse.content as ColoradoRegistrationGuideOutput)}
               {aiResponse.type === 'text_analysis' && renderTextAnalysis(aiResponse.content as TextAnalysisOutput)}
+              {aiResponse.type === 'email_reply' && renderEmailReply(aiResponse.content as DraftEmailReplyOutput)}
             </CardContent>
           </Card>
         )}
