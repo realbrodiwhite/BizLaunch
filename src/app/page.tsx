@@ -1,9 +1,9 @@
 
-"use client"; // Add "use client" for useState and useEffect
+"use client"; 
 
 import React, { useState, useEffect } from 'react';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
-import { Briefcase, Rocket, Settings, LineChart, Home as HomeIcon, Target, FileText, DollarSign, Building, CreditCard, PiggyBank, MapPin, Landmark, Users, ClipboardCheck, Banknote, ShieldCheck, ShoppingBag, BarChart2, Laptop, Siren, HeartHandshake, LandmarkIcon, Award, Trophy, Star, CheckCircle, ArrowLeft, ArrowRight, Link as LinkIcon, Search, MessageSquareQuote, Mail } from 'lucide-react';
+import { Briefcase, Rocket, Settings, LineChart, Home as HomeIcon, Target, FileText, DollarSign, Building, CreditCard, PiggyBank, MapPin, Landmark, Users, ClipboardCheck, Banknote, ShieldCheck, ShoppingBag, BarChart2, Laptop, Siren, HeartHandshake, LandmarkIcon, Award, Trophy, Star, CheckCircle, ArrowLeft, ArrowRight, Link as LinkIcon, Search, MessageSquareQuote, Mail, Send } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { AIBusinessAdvisor, type AdvisorTaskInfo } from "@/components/AIBusinessAdvisor";
 import { ResourceHub } from "@/components/ResourceHub";
@@ -17,12 +17,11 @@ import { updateAchievementStatus, getAchievementStatus } from '@/lib/achievement
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 
-// Define an extended task type for the wizard
 export interface WizardTask extends TaskWithAchievement {
   stageKey: 'plan' | 'launch' | 'manage' | 'grow';
   stageTitle: string;
   stageIcon: React.ElementType;
-  details: React.ReactNode; // To store the detailed description for each task
+  details: React.ReactNode; 
 }
 
 interface TaskWithAchievement {
@@ -34,8 +33,6 @@ interface TaskWithAchievement {
   achievementIconName: string;
 }
 
-
-// Define tasks for each stage with achievement details, stageKey, stageTitle, and details
 const planTasksRaw: Omit<WizardTask, 'completed' | 'stageIcon'>[] = [
   { id: 'market-research', label: 'Market research and competitive analysis', achievementName: 'Market Maven', achievementDescription: 'Completed initial market research.', achievementIconName: 'Target', stageKey: 'plan', stageTitle: 'Plan Your Business', details: (<div><p className="mb-2">Understand your customers, industry, and competitors. This involves:</p><ul className="list-disc pl-5 space-y-1"><li>Identifying your target audience and their needs.</li><li>Analyzing market size, trends, and growth potential.</li><li>Researching your direct and indirect competitors, their strengths, and weaknesses.</li><li>Explore resources like the <a href="https://www.sba.gov/business-guide/plan-your-business/market-research-competitive-analysis" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA's Market Research Guide <LinkIcon className="inline w-3 h-3"/></a>.</li></ul></div>) },
   { id: 'business-plan', label: 'Write your business plan', achievementName: 'Master Planner', achievementDescription: 'Drafted the business plan.', achievementIconName: 'FileText', stageKey: 'plan', stageTitle: 'Plan Your Business', details: (<div><p className="mb-2">Create a comprehensive roadmap for your business. Common sections include:</p><ul className="list-disc pl-5 space-y-1"><li><strong>Executive Summary:</strong> A brief overview of your entire plan.</li><li><strong>Company Description:</strong> Detail your business, mission, vision, and legal structure.</li><li><strong>Market Analysis:</strong> Summarize your market research findings.</li><li><strong>Organization and Management:</strong> Outline your business and management structure.</li><li><strong>Service or Product Line:</strong> Describe what you're selling and its benefits.</li><li><strong>Marketing and Sales Strategy:</strong> How you'll reach and sell to customers.</li><li><strong>Funding Request (if applicable):</strong> How much money you need and how it will be used.</li><li><strong>Financial Projections:</strong> Forecasts for revenue, expenses, and profitability.</li><li><strong>Appendix (optional):</strong> Supporting documents like resumes, permits, etc.</li></ul><p className="mt-2">Use templates from <a href="https://www.sba.gov/business-guide/plan-your-business/write-your-business-plan" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA <LinkIcon className="inline w-3 h-3"/></a> or <a href="https://www.score.org/business-plan-templates" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SCORE <LinkIcon className="inline w-3 h-3"/></a>. The AI Business Advisor can help draft sections.</p></div>) },
@@ -66,6 +63,7 @@ const manageTasksRaw: Omit<WizardTask, 'completed' | 'stageIcon'>[] = [
   { id: 'ai-small-business', label: 'Explore AI for small business', achievementName: 'AI Explorer', achievementDescription: 'Looked into AI tools.', achievementIconName: 'Laptop', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><Laptop className="inline w-4 h-4 mr-1 text-accent"/>Leverage artificial intelligence tools for efficiency.</li><li>Consider using the Text Analyzer in the AI Business Advisor below!</li></ul>) },
   { id: 'analyze-feedback-ai', label: 'Analyze Customer Feedback using AI', achievementName: 'Feedback Analyst', achievementDescription: 'Used AI to analyze feedback.', achievementIconName: 'MessageSquareQuote', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><MessageSquareQuote className="inline w-4 h-4 mr-1 text-accent"/>Use the AI Text Analyzer tool in the AI Business Advisor to understand customer sentiment and extract keywords from feedback.</li></ul>) },
   { id: 'draft-email-replies-ai', label: 'Draft Email Replies using AI', achievementName: 'Email Assistant', achievementDescription: 'Used AI to help draft email replies.', achievementIconName: 'Mail', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><Mail className="inline w-4 h-4 mr-1 text-accent"/>Use the AI Email Reply Drafter in the AI Business Advisor to quickly respond to customer inquiries.</li></ul>) },
+  { id: 'draft-cold-outreach-ai', label: 'Draft Cold Outreach Emails using AI', achievementName: 'Outreach Expert', achievementDescription: 'Used AI to help draft cold outreach emails.', achievementIconName: 'Send', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><Send className="inline w-4 h-4 mr-1 text-accent"/>Use the AI Cold Outreach Email Drafter in the AI Business Advisor to create effective outreach messages.</li></ul>) },
   { id: 'cybersecurity', label: 'Strengthen your cybersecurity', achievementName: 'Cyber Guardian', achievementDescription: 'Learned about cybersecurity.', achievementIconName: 'ShieldCheck', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><ShieldCheck className="inline w-4 h-4 mr-1 text-accent"/>Protect your digital assets and customer data.</li><li><a href="https://www.sba.gov/business-guide/manage-your-business/strengthen-your-cybersecurity" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA cybersecurity guide <LinkIcon className="inline w-3 h-3"/></a>.</li></ul>) },
   { id: 'prepare-emergencies', label: 'Prepare for emergencies', achievementName: 'Emergency Planner', achievementDescription: 'Prepared for emergencies.', achievementIconName: 'Siren', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><Siren className="inline w-4 h-4 mr-1 text-accent"/>Develop contingency plans for unexpected events.</li><li><a href="https://www.ready.gov/business" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">Ready.gov for businesses <LinkIcon className="inline w-3 h-3"/></a>.</li></ul>) },
   { id: 'recover-disasters', label: 'Recover from disasters', achievementName: 'Disaster Recoverer', achievementDescription: 'Planned for disaster recovery.', achievementIconName: 'HeartHandshake', stageKey: 'manage', stageTitle: 'Manage Your Business', details: (<ul><li><HeartHandshake className="inline w-4 h-4 mr-1 text-accent"/>Plan for recovery from natural or other disasters.</li><li><a href="https://www.sba.gov/funding-programs/disaster-assistance" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA disaster assistance <LinkIcon className="inline w-3 h-3"/></a>.</li></ul>) },
@@ -118,7 +116,6 @@ const allTasksForAdvisor: AdvisorTaskInfo[] = wizardTasks.map(task => ({
 export default function HomePage() {
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
   const [tasks, setTasks] = useState<WizardTask[]>(() => {
-    // Load progress from localStorage on component mount
     if (typeof window !== 'undefined') {
       const savedIndex = localStorage.getItem('bizlaunch_currentTaskIndex');
       if (savedIndex !== null) {
@@ -139,7 +136,6 @@ export default function HomePage() {
   }, [currentTaskIndex]);
 
   useEffect(() => {
-    // Listen for external achievement updates (e.g., from AIBusinessAdvisor if it modifies tasks)
     const handleExternalAchievementUpdate = (event: Event) => {
       if (event instanceof CustomEvent) {
         const { taskId, completed } = event.detail;
@@ -235,7 +231,6 @@ export default function HomePage() {
         
         <AIBusinessAdvisor allTasks={allTasksForAdvisor} />
 
-        {/* Business Wizard Section */}
         <div id="wizard" className="mt-12 pt-12 border-t scroll-mt-20">
           <Card className="shadow-lg">
             <CardHeader>
@@ -290,14 +285,12 @@ export default function HomePage() {
         </div>
 
 
-        {/* Achievements Section */}
         <div id="achievements" className="mt-12 pt-12 border-t scroll-mt-20">
             <h3 className="text-2xl font-semibold mb-6 text-primary flex items-center gap-2"><Trophy/> Achievements</h3>
             <AchievementsDisplay allAchievements={allAchievements} stageKeys={['plan', 'launch', 'manage', 'grow']} />
         </div>
 
 
-        {/* Resource Hub */}
         <div id="resources" className="mt-12 pt-12 border-t scroll-mt-20">
            <ResourceHub />
         </div>

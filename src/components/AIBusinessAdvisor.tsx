@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Search, Link as LinkIcon, Presentation, FileText as FileTextIcon, MessageSquareQuote, Mail } from "lucide-react";
+import { Terminal, Search, Link as LinkIcon, Presentation, FileText as FileTextIcon, MessageSquareQuote, Mail, Send } from "lucide-react";
 import { generateBusinessPlanDraft } from '@/ai/flows/business-plan-generator';
 import { estimateStartupCosts } from '@/ai/flows/startup-cost-estimator';
 import { summarizeMarketResearch } from '@/ai/flows/market-research-summary';
@@ -29,6 +29,7 @@ import { generatePitchDeckContent, type PitchDeckCreatorOutput } from '@/ai/flow
 import { getColoradoRegistrationGuide, type ColoradoRegistrationGuideOutput } from '@/ai/flows/colorado-business-registration-guide';
 import { analyzeText, type TextAnalysisOutput } from '@/ai/flows/text-analyzer-flow';
 import { draftEmailReply, type DraftEmailReplyOutput } from '@/ai/flows/draft-email-reply-flow';
+import { draftColdOutreachEmail, type DraftColdOutreachEmailOutput } from '@/ai/flows/cold-outreach-email-drafter';
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAchievementStatus } from '@/lib/achievementUtils';
@@ -46,18 +47,18 @@ interface AIBusinessAdvisorProps {
 }
 
 const FormSchema = z.object({
-  queryType: z.enum(["business_plan", "cost_estimation", "market_research", "name_generation", "grant_finder", "pitch_deck_creator", "colorado_registration_guide", "text_analyzer", "draft_email_reply"], {
+  queryType: z.enum(["business_plan", "cost_estimation", "market_research", "name_generation", "grant_finder", "pitch_deck_creator", "colorado_registration_guide", "text_analyzer", "draft_email_reply", "cold_outreach_email_drafter"], {
      required_error: "Please select a query type.",
    }),
   details: z.string().min(10, {
     message: "Please provide more details (at least 10 characters).",
   }),
-  // Conditional fields
-  location: z.string().optional(), // Used by cost estimation & grant finder
-  businessType: z.string().optional(), // Used by cost estimation, market research & CO registration guide
-  targetMarket: z.string().optional(), // Used by market research & pitch deck
-  keywords: z.string().optional(), // Used by name generation
-  industry: z.string().optional(), // Used by name generation & grant finder
+  // Common fields repurposed or optional
+  location: z.string().optional(), 
+  businessType: z.string().optional(), 
+  targetMarket: z.string().optional(), 
+  keywords: z.string().optional(), 
+  industry: z.string().optional(), 
   // Pitch deck specific
   problemSolved: z.string().optional(),
   solutionOffered: z.string().optional(),
@@ -66,16 +67,23 @@ const FormSchema = z.object({
   fundingAsk: z.string().optional(),
   // Text_analyzer specific
   analysisType: z.enum(['sentiment', 'keywords_summary']).optional(),
-  // Email reply drafter specific
-  customerInquiry: z.string().optional(),
+  // Email reply drafter specific (customerInquiry is mapped from 'details')
   businessContext: z.string().optional(),
   desiredTone: z.enum(["Formal", "Friendly", "Empathetic", "Concise", "Detailed"]).optional(),
   keyPointsToInclude: z.string().optional(), // Will be split into array
+  // Cold Outreach Email Drafter specific
+  outreachTargetAudience: z.string().optional(),
+  outreachValueProposition: z.string().optional(),
+  outreachDesiredOutcome: z.string().optional(),
+  outreachBusinessName: z.string().optional(),
+  outreachSenderName: z.string().optional(),
+  outreachTone: z.enum(["Professional", "Friendly", "Direct", "Persuasive", "Enthusiastic"]).optional(),
+  outreachCompanyBrief: z.string().optional(), // 'details' can be company brief here
 });
 
 interface AIResponse {
-  type: "text" | "grants" | "pitch_deck" | "structured_guide" | "text_analysis" | "email_reply";
-  content: string | GrantFinderOutput | PitchDeckCreatorOutput | ColoradoRegistrationGuideOutput | TextAnalysisOutput | DraftEmailReplyOutput;
+  type: "text" | "grants" | "pitch_deck" | "structured_guide" | "text_analysis" | "email_reply" | "cold_outreach_email";
+  content: string | GrantFinderOutput | PitchDeckCreatorOutput | ColoradoRegistrationGuideOutput | TextAnalysisOutput | DraftEmailReplyOutput | DraftColdOutreachEmailOutput;
 }
 
 export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
@@ -88,7 +96,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
     resolver: zodResolver(FormSchema),
      defaultValues: {
       queryType: undefined,
-      details: "", // This will serve as 'customerInquiry' for email_reply
+      details: "", 
       location: "",
       businessType: "",
       targetMarket: "",
@@ -100,11 +108,16 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
       financialHighlights: "",
       fundingAsk: "",
       analysisType: "sentiment",
-      // Email reply defaults
-      customerInquiry: "", // Redundant if 'details' is used, but schema needs it
       businessContext: "",
       desiredTone: "Friendly",
       keyPointsToInclude: "",
+      outreachTargetAudience: "",
+      outreachValueProposition: "",
+      outreachDesiredOutcome: "",
+      outreachBusinessName: "",
+      outreachSenderName: "",
+      outreachTone: "Professional",
+      outreachCompanyBrief: "",
     },
   });
 
@@ -212,13 +225,29 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
           if (!data.details || !data.businessContext) throw new Error("Customer inquiry and business context are required for drafting an email reply.");
           const keyPointsArray = data.keyPointsToInclude?.split('\n').filter(point => point.trim() !== '') || [];
           result = await draftEmailReply({
-            customerInquiry: data.details, // 'details' field serves as customerInquiry
+            customerInquiry: data.details,
             businessContext: data.businessContext!,
             desiredTone: data.desiredTone || 'Friendly',
             keyPointsToInclude: keyPointsArray,
             completedTasksContext: context,
           });
           setAiResponse({ type: "email_reply", content: result });
+          break;
+        case 'cold_outreach_email_drafter':
+          if (!data.outreachTargetAudience || !data.outreachValueProposition || !data.outreachDesiredOutcome || !data.outreachBusinessName || !data.outreachSenderName) {
+            throw new Error("Target audience, value proposition, desired outcome, business name, and sender name are required for cold outreach emails.");
+          }
+          result = await draftColdOutreachEmail({
+            targetAudience: data.outreachTargetAudience,
+            valueProposition: data.outreachValueProposition,
+            desiredOutcome: data.outreachDesiredOutcome,
+            businessName: data.outreachBusinessName,
+            senderName: data.outreachSenderName,
+            tone: data.outreachTone || 'Professional',
+            companyBrief: data.details, // 'details' field used for companyBrief here
+            completedTasksContext: context,
+          });
+          setAiResponse({ type: "cold_outreach_email", content: result });
           break;
         default:
           throw new Error("Invalid query type selected.");
@@ -241,14 +270,14 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
     }
   }
 
-  const getDynamicPlaceholder = (fieldName: 'details' | 'problemSolved' | 'solutionOffered' | 'targetMarket' | 'teamOverview' | 'financialHighlights' | 'fundingAsk' | 'businessContext' | 'keyPointsToInclude') => {
+  const getDynamicPlaceholder = (fieldName: 'details' | 'problemSolved' | 'solutionOffered' | 'targetMarket' | 'teamOverview' | 'financialHighlights' | 'fundingAsk' | 'businessContext' | 'keyPointsToInclude' | 'outreachTargetAudience' | 'outreachValueProposition' | 'outreachDesiredOutcome' | 'outreachBusinessName' | 'outreachSenderName') => {
     const businessPlanTaskLabel = "Write your business plan";
     const startupCostsTaskLabel = "Calculate your startup costs";
     const marketResearchTaskLabel = "Market research and competitive analysis";
     const registerBusinessTaskLabel = "Register your business";
     const analyzeFeedbackTaskLabel = "Analyze Customer Feedback using AI";
 
-    if (fieldName === 'details') { // This field is repurposed based on queryType
+    if (fieldName === 'details') { 
       switch (queryType) {
         case 'business_plan':
           return completedTaskLabels.includes(businessPlanTaskLabel)
@@ -278,41 +307,41 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
             : "Enter any text (e.g., customer review, survey response, competitor ad copy) to analyze sentiment and keywords.";
         case 'draft_email_reply':
           return "Paste the full customer email or message here.";
+        case 'cold_outreach_email_drafter':
+            return "Briefly describe your company (1-2 sentences) to give context for the outreach email. This will be used as 'Company Brief'.";
         default:
           return "Provide context for your request...";
       }
     }
     if (queryType === 'pitch_deck_creator') {
         switch(fieldName) {
-            case 'problemSolved':
-                return "What specific pain point or unmet need does your business address for customers?";
-            case 'solutionOffered':
-                return "How do your products/services uniquely solve this problem? What are the key benefits?";
-            case 'targetMarket':
-                return completedTaskLabels.includes(marketResearchTaskLabel)
-                ? "You've done market research. Summarize your target audience, market size, and growth potential."
-                : "Who are your ideal customers? Describe the market segment you're targeting and its size.";
-            case 'teamOverview':
-                return "Briefly introduce key team members and highlight relevant experience or expertise.";
-            case 'financialHighlights':
-                return "Mention any key financial projections, current traction (users, revenue), or important milestones achieved/expected.";
-            case 'fundingAsk':
-                return "If seeking investment, how much are you asking for and how will the funds be utilized?";
+            case 'problemSolved': return "What specific pain point or unmet need does your business address for customers?";
+            case 'solutionOffered': return "How do your products/services uniquely solve this problem? What are the key benefits?";
+            case 'targetMarket': return completedTaskLabels.includes(marketResearchTaskLabel) ? "You've done market research. Summarize your target audience, market size, and growth potential." : "Who are your ideal customers? Describe the market segment you're targeting and its size.";
+            case 'teamOverview': return "Briefly introduce key team members and highlight relevant experience or expertise.";
+            case 'financialHighlights': return "Mention any key financial projections, current traction (users, revenue), or important milestones achieved/expected.";
+            case 'fundingAsk': return "If seeking investment, how much are you asking for and how will the funds be utilized?";
         }
     }
     if (queryType === 'draft_email_reply') {
       switch(fieldName) {
-        case 'businessContext':
-          return "Briefly describe your business/product/service that the customer is asking about. E.g., 'We are an online bookstore specializing in rare books.'";
-        case 'keyPointsToInclude':
-          return "List any specific points or information you MUST include in the reply, one per line. E.g.,\n- Mention the 10% discount code: SAVE10\n- Our return policy is 30 days";
+        case 'businessContext': return "Briefly describe your business/product/service that the customer is asking about. E.g., 'We are an online bookstore specializing in rare books.'";
+        case 'keyPointsToInclude': return "List any specific points or information you MUST include in the reply, one per line. E.g.,\n- Mention the 10% discount code: SAVE10\n- Our return policy is 30 days";
       }
+    }
+     if (queryType === 'cold_outreach_email_drafter') {
+        switch(fieldName) {
+            case 'outreachTargetAudience': return "e.g., Marketing VPs at Series B tech companies";
+            case 'outreachValueProposition': return "e.g., Our AI tool increases lead conversion by 30%";
+            case 'outreachDesiredOutcome': return "e.g., Schedule a 15-minute demo";
+            case 'outreachBusinessName': return "e.g., Innovatech Solutions";
+            case 'outreachSenderName': return "e.g., Jane Doe";
+        }
     }
     return "Enter details...";
   };
 
-  const renderGrantSuggestions = (grantData: GrantFinderOutput) => {
-    return (
+  const renderGrantSuggestions = (grantData: GrantFinderOutput) => (
       <div className="space-y-6">
         <div>
           <h4 className="text-md font-semibold mb-2 text-foreground">Grant Suggestions:</h4>
@@ -359,11 +388,9 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
           </div>
         )}
       </div>
-    );
-  };
+  );
 
-  const renderPitchDeckContent = (pitchDeckData: PitchDeckCreatorOutput) => {
-    return (
+  const renderPitchDeckContent = (pitchDeckData: PitchDeckCreatorOutput) => (
       <div className="space-y-6">
         <h3 className="text-lg font-semibold text-primary">{pitchDeckData.pitchTitleSuggestion || "Pitch Deck Outline"}</h3>
         {pitchDeckData.slides.length > 0 ? (
@@ -407,11 +434,9 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
           </div>
         )}
       </div>
-    );
-  };
+  );
 
-  const renderStructuredGuide = (guideData: ColoradoRegistrationGuideOutput) => {
-    return (
+  const renderStructuredGuide = (guideData: ColoradoRegistrationGuideOutput) => (
       <div className="space-y-6">
         <p className="text-sm text-muted-foreground whitespace-pre-wrap">{guideData.introduction}</p>
         {guideData.guideSections.length > 0 ? (
@@ -454,11 +479,9 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
           </div>
         )}
       </div>
-    );
-  };
+  );
 
-  const renderTextAnalysis = (analysisData: TextAnalysisOutput) => {
-    return (
+  const renderTextAnalysis = (analysisData: TextAnalysisOutput) => (
       <div className="space-y-4">
         <div>
           <h4 className="text-md font-semibold text-foreground">Sentiment:</h4>
@@ -479,11 +502,9 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
           </div>
         )}
       </div>
-    );
-  };
+  );
 
-  const renderEmailReply = (emailData: DraftEmailReplyOutput) => {
-    return (
+  const renderEmailReply = (emailData: DraftEmailReplyOutput) => (
       <div className="space-y-4">
         {emailData.suggestedSubjectLine && (
           <div>
@@ -496,8 +517,20 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
           <div className="text-sm text-muted-foreground whitespace-pre-wrap p-3 bg-background border rounded-md">{emailData.draftReply}</div>
         </div>
       </div>
-    );
-  };
+  );
+
+  const renderColdOutreachEmail = (emailData: DraftColdOutreachEmailOutput) => (
+    <div className="space-y-4">
+        <div>
+          <h4 className="text-md font-semibold text-foreground">Suggested Subject:</h4>
+          <p className="text-sm text-muted-foreground p-2 bg-background border rounded-md">{emailData.draftEmailSubject}</p>
+        </div>
+        <div>
+          <h4 className="text-md font-semibold text-foreground">Draft Email Body:</h4>
+          <div className="text-sm text-muted-foreground whitespace-pre-wrap p-3 bg-background border rounded-md">{emailData.draftEmailBody}</div>
+        </div>
+      </div>
+  );
 
 
   return (
@@ -536,6 +569,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                       <SelectItem value="colorado_registration_guide">Colorado Business Registration Guide</SelectItem>
                       <SelectItem value="text_analyzer">Analyze Text (Sentiment/Keywords)</SelectItem>
                       <SelectItem value="draft_email_reply">Draft Email Reply (Inbound)</SelectItem>
+                      <SelectItem value="cold_outreach_email_drafter">Draft Cold Outreach Email</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -545,7 +579,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
             
             <FormField
               control={form.control}
-              name="details" // This field's label and placeholder change based on queryType
+              name="details" 
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
@@ -556,13 +590,14 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                      queryType === 'colorado_registration_guide' ? "Business Description for Registration Guide" :
                      queryType === 'text_analyzer' ? "Text to Analyze" :
                      queryType === 'draft_email_reply' ? "Customer Inquiry (Email/Message)" :
+                     queryType === 'cold_outreach_email_drafter' ? "Brief Company Context / Key Selling Points" :
                      "Details / Context for your request"}
                   </FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder={getDynamicPlaceholder('details')}
                       className="resize-none"
-                      rows={queryType === 'draft_email_reply' || queryType === 'text_analyzer' ? 5 : 3}
+                      rows={queryType === 'draft_email_reply' || queryType === 'text_analyzer' || queryType === 'cold_outreach_email_drafter' ? 5 : 3}
                       {...field}
                     />
                   </FormControl>
@@ -654,7 +689,6 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                 />
             )}
             
-            {/* Fields for Text Analyzer */}
             {queryType === 'text_analyzer' && (
               <FormField
                 control={form.control}
@@ -678,131 +712,33 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
               />
             )}
 
-
-            {/* Fields for Pitch Deck Creator */}
             {queryType === 'pitch_deck_creator' && (
               <>
-                <FormField
-                  control={form.control}
-                  name="problemSolved"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Problem Solved</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder={getDynamicPlaceholder('problemSolved')} className="resize-none" rows={2} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="solutionOffered"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Solution Offered</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder={getDynamicPlaceholder('solutionOffered')} className="resize-none" rows={2} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="teamOverview"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Team Overview (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder={getDynamicPlaceholder('teamOverview')} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="financialHighlights"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Financial Highlights/Traction (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder={getDynamicPlaceholder('financialHighlights')} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="fundingAsk"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Funding Ask (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder={getDynamicPlaceholder('fundingAsk')} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="problemSolved" render={({ field }) => (<FormItem><FormLabel>Problem Solved</FormLabel><FormControl><Textarea placeholder={getDynamicPlaceholder('problemSolved')} className="resize-none" rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="solutionOffered" render={({ field }) => (<FormItem><FormLabel>Solution Offered</FormLabel><FormControl><Textarea placeholder={getDynamicPlaceholder('solutionOffered')} className="resize-none" rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="teamOverview" render={({ field }) => (<FormItem><FormLabel>Team Overview (Optional)</FormLabel><FormControl><Input placeholder={getDynamicPlaceholder('teamOverview')} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="financialHighlights" render={({ field }) => (<FormItem><FormLabel>Financial Highlights/Traction (Optional)</FormLabel><FormControl><Input placeholder={getDynamicPlaceholder('financialHighlights')} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="fundingAsk" render={({ field }) => (<FormItem><FormLabel>Funding Ask (Optional)</FormLabel><FormControl><Input placeholder={getDynamicPlaceholder('fundingAsk')} {...field} /></FormControl><FormMessage /></FormItem>)} />
               </>
             )}
 
-            {/* Fields for Draft Email Reply */}
             {queryType === 'draft_email_reply' && (
               <>
-                <FormField
-                  control={form.control}
-                  name="businessContext"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Your Business Context for this Reply</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder={getDynamicPlaceholder('businessContext')} className="resize-none" rows={2} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="desiredTone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Desired Tone</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value || "Friendly"}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a tone..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Friendly">Friendly</SelectItem>
-                          <SelectItem value="Formal">Formal</SelectItem>
-                          <SelectItem value="Empathetic">Empathetic</SelectItem>
-                          <SelectItem value="Concise">Concise</SelectItem>
-                          <SelectItem value="Detailed">Detailed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="keyPointsToInclude"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Key Points to Include (Optional, one per line)</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder={getDynamicPlaceholder('keyPointsToInclude')} className="resize-none" rows={3} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="businessContext" render={({ field }) => (<FormItem><FormLabel>Your Business Context for this Reply</FormLabel><FormControl><Textarea placeholder={getDynamicPlaceholder('businessContext')} className="resize-none" rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="desiredTone" render={({ field }) => (<FormItem><FormLabel>Desired Tone</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value || "Friendly"}><FormControl><SelectTrigger><SelectValue placeholder="Select a tone..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Friendly">Friendly</SelectItem><SelectItem value="Formal">Formal</SelectItem><SelectItem value="Empathetic">Empathetic</SelectItem><SelectItem value="Concise">Concise</SelectItem><SelectItem value="Detailed">Detailed</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="keyPointsToInclude" render={({ field }) => (<FormItem><FormLabel>Key Points to Include (Optional, one per line)</FormLabel><FormControl><Textarea placeholder={getDynamicPlaceholder('keyPointsToInclude')} className="resize-none" rows={3} {...field} /></FormControl><FormMessage /></FormItem>)} />
+              </>
+            )}
+
+            {/* Fields for Cold Outreach Email Drafter */}
+            {queryType === 'cold_outreach_email_drafter' && (
+              <>
+                <FormField control={form.control} name="outreachTargetAudience" render={({ field }) => (<FormItem><FormLabel>Target Audience</FormLabel><FormControl><Input placeholder={getDynamicPlaceholder('outreachTargetAudience')} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="outreachValueProposition" render={({ field }) => (<FormItem><FormLabel>Value Proposition</FormLabel><FormControl><Textarea placeholder={getDynamicPlaceholder('outreachValueProposition')} className="resize-none" rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="outreachDesiredOutcome" render={({ field }) => (<FormItem><FormLabel>Desired Outcome</FormLabel><FormControl><Input placeholder={getDynamicPlaceholder('outreachDesiredOutcome')} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="outreachBusinessName" render={({ field }) => (<FormItem><FormLabel>Your Business Name</FormLabel><FormControl><Input placeholder={getDynamicPlaceholder('outreachBusinessName')} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="outreachSenderName" render={({ field }) => (<FormItem><FormLabel>Your Name (Sender)</FormLabel><FormControl><Input placeholder={getDynamicPlaceholder('outreachSenderName')} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="outreachTone" render={({ field }) => (<FormItem><FormLabel>Desired Tone</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value || "Professional"}><FormControl><SelectTrigger><SelectValue placeholder="Select a tone..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Professional">Professional</SelectItem><SelectItem value="Friendly">Friendly</SelectItem><SelectItem value="Direct">Direct</SelectItem><SelectItem value="Persuasive">Persuasive</SelectItem><SelectItem value="Enthusiastic">Enthusiastic</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
               </>
             )}
 
@@ -835,6 +771,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
               <CardTitle className="text-lg text-secondary-foreground flex items-center gap-2">
                 {aiResponse.type === 'text_analysis' ? <MessageSquareQuote className="w-5 h-5" /> : 
                  aiResponse.type === 'email_reply' ? <Mail className="w-5 h-5" /> : 
+                 aiResponse.type === 'cold_outreach_email' ? <Send className="w-5 h-5" /> :
                  <Terminal className="w-5 h-5" />}
                  AI Response
               </CardTitle>
@@ -846,6 +783,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
               {aiResponse.type === 'structured_guide' && renderStructuredGuide(aiResponse.content as ColoradoRegistrationGuideOutput)}
               {aiResponse.type === 'text_analysis' && renderTextAnalysis(aiResponse.content as TextAnalysisOutput)}
               {aiResponse.type === 'email_reply' && renderEmailReply(aiResponse.content as DraftEmailReplyOutput)}
+              {aiResponse.type === 'cold_outreach_email' && renderColdOutreachEmail(aiResponse.content as DraftColdOutreachEmailOutput)}
             </CardContent>
           </Card>
         )}
