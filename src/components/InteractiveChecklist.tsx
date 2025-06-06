@@ -6,21 +6,26 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { motion, AnimatePresence } from "framer-motion"; // Using framer-motion for animation
 import { cn } from "@/lib/utils";
+import { updateAchievementStatus } from '@/lib/achievementUtils'; // Import achievement utility
 
-interface Task {
+// Extend Task type to include achievement details using icon name
+export interface TaskWithAchievement {
   id: string;
   label: string;
   completed: boolean;
+  achievementName: string;
+  achievementDescription: string;
+  achievementIconName: string; // Changed from achievementIcon to string
 }
 
 interface InteractiveChecklistProps {
   title: string;
-  tasks: Task[];
+  tasks: TaskWithAchievement[]; // Use the extended type
   stageKey: string; // Unique key for storing progress in localStorage
 }
 
 export function InteractiveChecklist({ title, tasks: initialTasks, stageKey }: InteractiveChecklistProps) {
-  const [tasks, setTasks] = useState<Task[]>(() => {
+  const [tasks, setTasks] = useState<TaskWithAchievement[]>(() => {
      // Load progress from localStorage on component mount
     if (typeof window !== 'undefined') {
        const savedProgress = localStorage.getItem(`bizlaunch_${stageKey}_progress`);
@@ -53,12 +58,22 @@ export function InteractiveChecklist({ title, tasks: initialTasks, stageKey }: I
    }, [tasks, stageKey]);
 
   const handleCheckChange = (taskId: string) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
+    setTasks(prevTasks => {
+       const updatedTasks = prevTasks.map(task =>
         task.id === taskId ? { ...task, completed: !task.completed } : task
-      )
-    );
+      );
+      // Find the task that was just changed
+      const changedTask = updatedTasks.find(task => task.id === taskId);
+      if (changedTask) {
+        // Update achievement status in localStorage
+        updateAchievementStatus(changedTask.id, changedTask.completed);
+        // Optionally dispatch an event or call a callback if needed elsewhere
+         window.dispatchEvent(new CustomEvent('achievementUpdate', { detail: { taskId: changedTask.id, completed: changedTask.completed } }));
+      }
+      return updatedTasks;
+    });
   };
+
 
   const completedCount = tasks.filter(task => task.completed).length;
   const totalCount = tasks.length;
