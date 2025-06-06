@@ -19,13 +19,14 @@ import {
 } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Search, Link as LinkIcon, Presentation } from "lucide-react";
+import { Terminal, Search, Link as LinkIcon, Presentation, FileText as FileTextIcon } from "lucide-react";
 import { generateBusinessPlanDraft } from '@/ai/flows/business-plan-generator';
 import { estimateStartupCosts } from '@/ai/flows/startup-cost-estimator';
 import { summarizeMarketResearch } from '@/ai/flows/market-research-summary';
 import { generateBusinessNames } from '@/ai/flows/business-name-generator';
 import { findGrants, type GrantFinderOutput } from '@/ai/flows/grant-finder-flow';
 import { generatePitchDeckContent, type PitchDeckCreatorOutput } from '@/ai/flows/pitch-deck-creator';
+import { getColoradoRegistrationGuide, type ColoradoRegistrationGuideOutput } from '@/ai/flows/colorado-business-registration-guide';
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAchievementStatus } from '@/lib/achievementUtils';
@@ -43,7 +44,7 @@ interface AIBusinessAdvisorProps {
 }
 
 const FormSchema = z.object({
-  queryType: z.enum(["business_plan", "cost_estimation", "market_research", "name_generation", "grant_finder", "pitch_deck_creator"], {
+  queryType: z.enum(["business_plan", "cost_estimation", "market_research", "name_generation", "grant_finder", "pitch_deck_creator", "colorado_registration_guide"], {
      required_error: "Please select a query type.",
    }),
   details: z.string().min(10, {
@@ -51,7 +52,7 @@ const FormSchema = z.object({
   }),
   // Conditional fields
   location: z.string().optional(), // Used by cost estimation & grant finder
-  businessType: z.string().optional(), // Used by cost estimation & market research
+  businessType: z.string().optional(), // Used by cost estimation, market research & CO registration guide
   targetMarket: z.string().optional(), // Used by market research & pitch deck
   keywords: z.string().optional(), // Used by name generation
   industry: z.string().optional(), // Used by name generation & grant finder
@@ -63,8 +64,8 @@ const FormSchema = z.object({
 });
 
 interface AIResponse {
-  type: "text" | "grants" | "pitch_deck";
-  content: string | GrantFinderOutput | PitchDeckCreatorOutput;
+  type: "text" | "grants" | "pitch_deck" | "structured_guide";
+  content: string | GrantFinderOutput | PitchDeckCreatorOutput | ColoradoRegistrationGuideOutput;
 }
 
 export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
@@ -117,9 +118,9 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
 
   const getCompletedTasksContext = (): string => {
     if (completedTaskLabels.length > 0) {
-      return `The user has indicated progress or completion on the following tasks: ${completedTaskLabels.join(', ')}. Please consider this context.`;
+      return `The user has indicated progress or completion on the following tasks: ${completedTaskLabels.join(', ')}. Please consider this context when generating your response.`;
     }
-    return "";
+    return "The user has not yet marked any specific tasks as completed. Provide foundational advice.";
   }
 
 
@@ -173,6 +174,15 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
           });
           setAiResponse({ type: "pitch_deck", content: result });
           break;
+        case 'colorado_registration_guide':
+          if (!data.details) throw new Error("Business description is required for the Colorado registration guide.");
+          result = await getColoradoRegistrationGuide({
+            businessDescription: data.details,
+            businessType: data.businessType,
+            completedTasksContext: context,
+          });
+          setAiResponse({ type: "structured_guide", content: result });
+          break;
         default:
           throw new Error("Invalid query type selected.");
       }
@@ -198,6 +208,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
     const businessPlanTaskLabel = "Write your business plan";
     const startupCostsTaskLabel = "Calculate your startup costs";
     const marketResearchTaskLabel = "Market research and competitive analysis";
+    const registerBusinessTaskLabel = "Register your business";
 
     if (fieldName === 'details') {
       switch (queryType) {
@@ -219,6 +230,10 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
           return completedTaskLabels.includes(businessPlanTaskLabel)
             ? "You've started your business plan. Use key details from it here for your overall business description."
             : "Provide a concise, compelling overview of your business. What is its core mission and value proposition?";
+        case 'colorado_registration_guide':
+          return completedTaskLabels.includes(registerBusinessTaskLabel)
+            ? "You've started registering your business. What specific questions do you have about Colorado registration, or which part needs clarification?"
+            : "Briefly describe your business. If you know your intended business structure (e.g., LLC, sole proprietorship), include that for more tailored Colorado registration advice.";
         default:
           return "Provide context for your request...";
       }
@@ -343,6 +358,53 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
     );
   };
 
+  const renderStructuredGuide = (guideData: ColoradoRegistrationGuideOutput) => {
+    return (
+      <div className="space-y-6">
+        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{guideData.introduction}</p>
+        {guideData.guideSections.length > 0 ? (
+          <Accordion type="single" collapsible className="w-full" defaultValue="section-0">
+            {guideData.guideSections.map((section, index) => (
+              <AccordionItem value={`section-${index}`} key={index}>
+                <AccordionTrigger className="text-left hover:no-underline">
+                    <div className="flex items-center gap-2">
+                        <FileTextIcon className="w-4 h-4 text-accent"/>
+                        {section.title}
+                    </div>
+                </AccordionTrigger>
+                <AccordionContent className="bg-background p-4 rounded-b-md space-y-3">
+                  <div className="text-sm text-muted-foreground whitespace-pre-wrap prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: section.content.replace(/\n/g, '<br />') }} />
+                  {section.relevantLinks && section.relevantLinks.length > 0 && (
+                    <div>
+                      <h5 className="text-xs font-semibold text-foreground mb-1">Relevant Links:</h5>
+                      <ul className="space-y-1">
+                        {section.relevantLinks.map((link, lIndex) => (
+                          <li key={lIndex}>
+                            <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline flex items-center gap-1">
+                              <LinkIcon className="w-3 h-3" /> {link.text}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        ) : (
+          <p className="text-sm text-muted-foreground">No guide sections available. Please refine your input.</p>
+        )}
+        {guideData.nextStepsSuggestion && (
+          <div>
+            <h4 className="text-md font-semibold mb-2 text-foreground">Next Steps:</h4>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{guideData.nextStepsSuggestion}</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
 
   return (
     <Card className="shadow-lg">
@@ -377,6 +439,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                       <SelectItem value="name_generation">Generate Business Names</SelectItem>
                       <SelectItem value="grant_finder">Find Grant Opportunities</SelectItem>
                       <SelectItem value="pitch_deck_creator">Create Pitch Deck Content</SelectItem>
+                      <SelectItem value="colorado_registration_guide">Colorado Business Registration Guide</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -384,7 +447,6 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
               )}
             />
             
-            {/* Details Textarea - Common for most queries */}
             <FormField
               control={form.control}
               name="details"
@@ -395,13 +457,14 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                      queryType === 'grant_finder' ? "Detailed Business Description for Grant Search" :
                      queryType === 'cost_estimation' ? "Business Details for Cost Estimation" :
                      queryType === 'pitch_deck_creator' ? "Overall Business Description/Mission" :
+                     queryType === 'colorado_registration_guide' ? "Business Description for Registration Guide" :
                      "Details / Context for your request"}
                   </FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder={getDynamicPlaceholder('details')}
                       className="resize-none"
-                      rows={queryType === 'pitch_deck_creator' ? 3 : 5}
+                      rows={queryType === 'pitch_deck_creator' || queryType === 'colorado_registration_guide' ? 3 : 5}
                       {...field}
                     />
                   </FormControl>
@@ -427,15 +490,17 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                 />
             )}
             
-            {(queryType === 'cost_estimation' || queryType === 'market_research') && (
+            {(queryType === 'cost_estimation' || queryType === 'market_research' || queryType === 'colorado_registration_guide') && (
                  <FormField
                   control={form.control}
                   name="businessType"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Business Type</FormLabel>
+                      <FormLabel>
+                        {queryType === 'colorado_registration_guide' ? "Potential Business Type (e.g., LLC, Sole Prop)" : "Business Type"}
+                      </FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Coffee Shop, SaaS, Non-profit" {...field} />
+                        <Input placeholder="e.g., Coffee Shop, SaaS, LLC, Non-profit" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -593,6 +658,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
               {aiResponse.type === 'text' && <div className="whitespace-pre-wrap">{aiResponse.content as string}</div>}
               {aiResponse.type === 'grants' && renderGrantSuggestions(aiResponse.content as GrantFinderOutput)}
               {aiResponse.type === 'pitch_deck' && renderPitchDeckContent(aiResponse.content as PitchDeckCreatorOutput)}
+              {aiResponse.type === 'structured_guide' && renderStructuredGuide(aiResponse.content as ColoradoRegistrationGuideOutput)}
             </CardContent>
           </Card>
         )}
@@ -600,3 +666,4 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
     </Card>
   );
 }
+
