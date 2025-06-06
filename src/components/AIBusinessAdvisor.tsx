@@ -19,15 +19,18 @@ import {
 } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Search, Link as LinkIcon } from "lucide-react";
+import { Terminal, Search, Link as LinkIcon, Presentation } from "lucide-react";
 import { generateBusinessPlanDraft } from '@/ai/flows/business-plan-generator';
 import { estimateStartupCosts } from '@/ai/flows/startup-cost-estimator';
 import { summarizeMarketResearch } from '@/ai/flows/market-research-summary';
 import { generateBusinessNames } from '@/ai/flows/business-name-generator';
 import { findGrants, type GrantFinderOutput } from '@/ai/flows/grant-finder-flow';
+import { generatePitchDeckContent, type PitchDeckCreatorOutput } from '@/ai/flows/pitch-deck-creator';
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAchievementStatus } from '@/lib/achievementUtils';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
 
 // Define types for props and state
 export interface AdvisorTaskInfo {
@@ -40,23 +43,28 @@ interface AIBusinessAdvisorProps {
 }
 
 const FormSchema = z.object({
-  queryType: z.enum(["business_plan", "cost_estimation", "market_research", "name_generation", "grant_finder"], {
+  queryType: z.enum(["business_plan", "cost_estimation", "market_research", "name_generation", "grant_finder", "pitch_deck_creator"], {
      required_error: "Please select a query type.",
    }),
   details: z.string().min(10, {
-    message: "Please provide more details (at least 10 characters). For business plan or grant finding, this should be a detailed business description.",
+    message: "Please provide more details (at least 10 characters). This is often the main business description.",
   }),
   // Conditional fields
-  location: z.string().optional(),
+  location: z.string().optional(), // Used by cost estimation & grant finder
   businessType: z.string().optional(), // Used by cost estimation & market research
-  targetMarket: z.string().optional(), // Used by market research
+  targetMarket: z.string().optional(), // Used by market research & pitch deck
   keywords: z.string().optional(), // Used by name generation
   industry: z.string().optional(), // Used by name generation & grant finder
+  problemSolved: z.string().optional(), // pitch deck
+  solutionOffered: z.string().optional(), // pitch deck
+  teamOverview: z.string().optional(), // pitch deck
+  financialHighlights: z.string().optional(), // pitch deck
+  fundingAsk: z.string().optional(), // pitch deck
 });
 
 interface AIResponse {
-  type: "text" | "grants";
-  content: string | GrantFinderOutput;
+  type: "text" | "grants" | "pitch_deck";
+  content: string | GrantFinderOutput | PitchDeckCreatorOutput;
 }
 
 export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
@@ -75,6 +83,11 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
       targetMarket: "",
       keywords: "",
       industry: "",
+      problemSolved: "",
+      solutionOffered: "",
+      teamOverview: "",
+      financialHighlights: "",
+      fundingAsk: "",
     },
   });
 
@@ -90,10 +103,10 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
       }
     };
 
-    loadCompletedTasks(); // Initial load
+    loadCompletedTasks(); 
 
     const handleAchievementUpdate = () => {
-      loadCompletedTasks(); // Reload on update
+      loadCompletedTasks(); 
     };
 
     window.addEventListener('achievementUpdate', handleAchievementUpdate);
@@ -102,11 +115,19 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
     };
   }, [allTasks]);
 
+  const getCompletedTasksContext = (): string => {
+    if (completedTaskLabels.length > 0) {
+      return `The user has indicated progress or completion on the following tasks: ${completedTaskLabels.join(', ')}. Please consider this context.`;
+    }
+    return "";
+  }
+
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     setIsLoading(true);
     setError(null);
     setAiResponse(null);
+    const context = getCompletedTasksContext();
 
     try {
       let result;
@@ -136,6 +157,22 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
           result = await findGrants({ businessDescription: data.details, industry: data.industry, location: data.location });
           setAiResponse({type: "grants", content: result});
           break;
+        case 'pitch_deck_creator':
+          if (!data.details || !data.problemSolved || !data.solutionOffered || !data.targetMarket) {
+            throw new Error("Business description, problem, solution, and target market are required for pitch deck creation.");
+          }
+          result = await generatePitchDeckContent({
+            businessDescription: data.details,
+            problemSolved: data.problemSolved,
+            solutionOffered: data.solutionOffered,
+            targetMarket: data.targetMarket,
+            teamOverview: data.teamOverview,
+            financialHighlights: data.financialHighlights,
+            fundingAsk: data.fundingAsk,
+            completedTasksContext: context,
+          });
+          setAiResponse({ type: "pitch_deck", content: result });
+          break;
         default:
           throw new Error("Invalid query type selected.");
       }
@@ -157,31 +194,54 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
     }
   }
 
-  const getDynamicPlaceholder = () => {
+  const getDynamicPlaceholder = (fieldName: 'details' | 'problemSolved' | 'solutionOffered' | 'targetMarket' | 'teamOverview' | 'financialHighlights' | 'fundingAsk' ) => {
     const businessPlanTaskLabel = "Write your business plan";
     const startupCostsTaskLabel = "Calculate your startup costs";
+    const marketResearchTaskLabel = "Market research and competitive analysis";
 
-    switch (queryType) {
-      case 'business_plan':
-        if (completedTaskLabels.includes(businessPlanTaskLabel)) {
-          return "Your 'Write your business plan' task is complete. How can I help refine it? E.g., 'Help me strengthen the executive summary' or 'Review my financial projections section'.";
-        }
-        return "Describe your business idea, mission, products/services, target market, etc., to generate a business plan draft.";
-      case 'cost_estimation':
-        if (completedTaskLabels.includes(startupCostsTaskLabel)) {
-          return "You've calculated startup costs. Need help finding funding options based on these costs, or perhaps a review of your cost breakdown?";
-        }
-        return "Provide specifics about your planned operations, scale, or unique needs for a startup cost estimate.";
-      case 'market_research':
-        if (completedTaskLabels.includes("Market research and competitive analysis")) {
-            return "Market research task is complete. Need to dive deeper into a specific competitor, trend, or generate marketing ideas based on your research?";
-        }
-        return "Describe your business type and target market for a research summary.";
-      case 'grant_finder':
-        return "Provide a comprehensive description of your business, its goals, impact, and what you might use grant funding for.";
-      default:
-        return "Provide context for your request...";
+    if (fieldName === 'details') {
+      switch (queryType) {
+        case 'business_plan':
+          return completedTaskLabels.includes(businessPlanTaskLabel)
+            ? "Your 'Write your business plan' task is complete. How can I help refine it? E.g., 'Help me strengthen the executive summary' or 'Review my financial projections section'."
+            : "Describe your business idea, mission, products/services, target market, etc., to generate a business plan draft.";
+        case 'cost_estimation':
+          return completedTaskLabels.includes(startupCostsTaskLabel)
+            ? "You've calculated startup costs. Need help finding funding options based on these costs, or perhaps a review of your cost breakdown?"
+            : "Provide specifics about your planned operations, scale, or unique needs for a startup cost estimate.";
+        case 'market_research':
+          return completedTaskLabels.includes(marketResearchTaskLabel)
+              ? "Market research task is complete. Need to dive deeper into a specific competitor, trend, or generate marketing ideas based on your research?"
+              : "Describe your business type and target market for a research summary.";
+        case 'grant_finder':
+          return "Provide a comprehensive description of your business, its goals, impact, and what you might use grant funding for.";
+        case 'pitch_deck_creator':
+          return completedTaskLabels.includes(businessPlanTaskLabel)
+            ? "You've started your business plan. Use key details from it here for your overall business description."
+            : "Provide a concise, compelling overview of your business. What is its core mission and value proposition?";
+        default:
+          return "Provide context for your request...";
+      }
     }
+    if (queryType === 'pitch_deck_creator') {
+        switch(fieldName) {
+            case 'problemSolved':
+                return "What specific pain point or unmet need does your business address for customers?";
+            case 'solutionOffered':
+                return "How do your products/services uniquely solve this problem? What are the key benefits?";
+            case 'targetMarket':
+                return completedTaskLabels.includes(marketResearchTaskLabel)
+                ? "You've done market research. Summarize your target audience, market size, and growth potential."
+                : "Who are your ideal customers? Describe the market segment you're targeting and its size.";
+            case 'teamOverview':
+                return "Briefly introduce key team members and highlight relevant experience or expertise.";
+            case 'financialHighlights':
+                return "Mention any key financial projections, current traction (users, revenue), or important milestones achieved/expected.";
+            case 'fundingAsk':
+                return "If seeking investment, how much are you asking for and how will the funds be utilized?";
+        }
+    }
+    return "Enter details...";
   };
 
   const renderGrantSuggestions = (grantData: GrantFinderOutput) => {
@@ -235,6 +295,54 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
     );
   };
 
+  const renderPitchDeckContent = (pitchDeckData: PitchDeckCreatorOutput) => {
+    return (
+      <div className="space-y-6">
+        <h3 className="text-lg font-semibold text-primary">{pitchDeckData.pitchTitleSuggestion || "Pitch Deck Outline"}</h3>
+        {pitchDeckData.slides.length > 0 ? (
+          <Accordion type="single" collapsible className="w-full">
+            {pitchDeckData.slides.map((slide, index) => (
+              <AccordionItem value={`slide-${index}`} key={index}>
+                <AccordionTrigger className="text-left hover:no-underline">
+                    <div className="flex items-center gap-2">
+                        <Presentation className="w-4 h-4 text-accent"/>
+                        {slide.title}
+                    </div>
+                </AccordionTrigger>
+                <AccordionContent className="bg-background p-4 rounded-b-md">
+                  <h5 className="font-semibold mb-2 text-foreground">Content Suggestions:</h5>
+                  <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                    {slide.contentSuggestions.map((suggestion, sIndex) => (
+                      <li key={sIndex}>{suggestion}</li>
+                    ))}
+                  </ul>
+                  {slide.speakerNotes && (
+                    <>
+                      <h5 className="font-semibold mt-3 mb-2 text-foreground">Speaker Notes:</h5>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{slide.speakerNotes}</p>
+                    </>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        ) : (
+          <p className="text-sm text-muted-foreground">No slide suggestions generated. Please refine your input.</p>
+        )}
+        {pitchDeckData.additionalTips && pitchDeckData.additionalTips.length > 0 && (
+          <div>
+            <h4 className="text-md font-semibold mb-2 text-foreground">Additional Pitch Tips:</h4>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+              {pitchDeckData.additionalTips.map((tip, index) => (
+                <li key={index}>{tip}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  };
+
 
   return (
     <Card className="shadow-lg">
@@ -268,13 +376,41 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                       <SelectItem value="market_research">Summarize Market Research</SelectItem>
                       <SelectItem value="name_generation">Generate Business Names</SelectItem>
                       <SelectItem value="grant_finder">Find Grant Opportunities</SelectItem>
+                      <SelectItem value="pitch_deck_creator">Create Pitch Deck Content</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            
+            {/* Details Textarea - Common for most queries */}
+            <FormField
+              control={form.control}
+              name="details"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {queryType === 'business_plan' ? "Business Description / Plan Section to Refine" :
+                     queryType === 'grant_finder' ? "Detailed Business Description for Grant Search" :
+                     queryType === 'cost_estimation' ? "Business Details for Cost Estimation" :
+                     queryType === 'pitch_deck_creator' ? "Overall Business Description/Mission" :
+                     "Details / Context for your request"}
+                  </FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder={getDynamicPlaceholder('details')}
+                      className="resize-none"
+                      rows={queryType === 'pitch_deck_creator' ? 3 : 5}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
+            {/* Conditional fields based on queryType */}
             {(queryType === 'cost_estimation' || queryType === 'grant_finder') && (
                 <FormField
                   control={form.control}
@@ -283,7 +419,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                     <FormItem>
                       <FormLabel>Business Location (City, State)</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Austin, TX" {...field} />
+                        <Input placeholder="e.g., Austin, TX or Denver, CO" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -307,7 +443,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                 />
             )}
 
-            {queryType === 'market_research' && (
+            {(queryType === 'market_research' || queryType === 'pitch_deck_creator') && (
                 <FormField
                   control={form.control}
                   name="targetMarket"
@@ -315,7 +451,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                     <FormItem>
                       <FormLabel>Target Market</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Freelancers, Gen Z, Local community" {...field} />
+                        <Input placeholder={getDynamicPlaceholder('targetMarket')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -355,30 +491,76 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                 />
             )}
 
-
-             <FormField
-              control={form.control}
-              name="details"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {queryType === 'business_plan' ? "Business Description / Plan Section to Refine" :
-                     queryType === 'grant_finder' ? "Detailed Business Description for Grant Search" :
-                     queryType === 'cost_estimation' ? "Business Details for Cost Estimation" :
-                     "Details / Context for your request"}
-                  </FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder={getDynamicPlaceholder()}
-                      className="resize-none"
-                      rows={5}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Fields for Pitch Deck Creator */}
+            {queryType === 'pitch_deck_creator' && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="problemSolved"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Problem Solved</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder={getDynamicPlaceholder('problemSolved')} className="resize-none" rows={2} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="solutionOffered"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Solution Offered</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder={getDynamicPlaceholder('solutionOffered')} className="resize-none" rows={2} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="teamOverview"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Team Overview (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder={getDynamicPlaceholder('teamOverview')} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="financialHighlights"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Financial Highlights/Traction (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder={getDynamicPlaceholder('financialHighlights')} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="fundingAsk"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Funding Ask (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder={getDynamicPlaceholder('fundingAsk')} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
 
             <Button type="submit" disabled={isLoading} className="bg-accent hover:bg-accent/90 text-accent-foreground">
               {isLoading ? "Generating..." : "Get Advice"}
@@ -410,6 +592,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
              <CardContent className="text-secondary-foreground">
               {aiResponse.type === 'text' && <div className="whitespace-pre-wrap">{aiResponse.content as string}</div>}
               {aiResponse.type === 'grants' && renderGrantSuggestions(aiResponse.content as GrantFinderOutput)}
+              {aiResponse.type === 'pitch_deck' && renderPitchDeckContent(aiResponse.content as PitchDeckCreatorOutput)}
             </CardContent>
           </Card>
         )}
