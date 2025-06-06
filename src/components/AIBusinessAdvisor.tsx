@@ -2,7 +2,7 @@
 // src/components/AIBusinessAdvisor.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -27,6 +27,17 @@ import { generateBusinessNames } from '@/ai/flows/business-name-generator';
 import { findGrants, type GrantFinderOutput } from '@/ai/flows/grant-finder-flow';
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getAchievementStatus } from '@/lib/achievementUtils';
+
+// Define types for props and state
+export interface AdvisorTaskInfo {
+  id: string;
+  label: string;
+}
+
+interface AIBusinessAdvisorProps {
+  allTasks: AdvisorTaskInfo[];
+}
 
 const FormSchema = z.object({
   queryType: z.enum(["business_plan", "cost_estimation", "market_research", "name_generation", "grant_finder"], {
@@ -48,10 +59,11 @@ interface AIResponse {
   content: string | GrantFinderOutput;
 }
 
-export function AIBusinessAdvisor() {
+export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
   const [aiResponse, setAiResponse] = useState<AIResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [completedTaskLabels, setCompletedTaskLabels] = useState<string[]>([]);
 
    const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -66,7 +78,30 @@ export function AIBusinessAdvisor() {
     },
   });
 
-   const queryType = form.watch("queryType");
+  const queryType = form.watch("queryType");
+
+  useEffect(() => {
+    const loadCompletedTasks = () => {
+      if (typeof window !== 'undefined' && allTasks) {
+        const currentCompletedLabels = allTasks
+          .filter(task => getAchievementStatus(task.id))
+          .map(task => task.label);
+        setCompletedTaskLabels(currentCompletedLabels);
+      }
+    };
+
+    loadCompletedTasks(); // Initial load
+
+    const handleAchievementUpdate = () => {
+      loadCompletedTasks(); // Reload on update
+    };
+
+    window.addEventListener('achievementUpdate', handleAchievementUpdate);
+    return () => {
+      window.removeEventListener('achievementUpdate', handleAchievementUpdate);
+    };
+  }, [allTasks]);
+
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     setIsLoading(true);
@@ -121,6 +156,33 @@ export function AIBusinessAdvisor() {
       setIsLoading(false);
     }
   }
+
+  const getDynamicPlaceholder = () => {
+    const businessPlanTaskLabel = "Write your business plan";
+    const startupCostsTaskLabel = "Calculate your startup costs";
+
+    switch (queryType) {
+      case 'business_plan':
+        if (completedTaskLabels.includes(businessPlanTaskLabel)) {
+          return "Your 'Write your business plan' task is complete. How can I help refine it? E.g., 'Help me strengthen the executive summary' or 'Review my financial projections section'.";
+        }
+        return "Describe your business idea, mission, products/services, target market, etc., to generate a business plan draft.";
+      case 'cost_estimation':
+        if (completedTaskLabels.includes(startupCostsTaskLabel)) {
+          return "You've calculated startup costs. Need help finding funding options based on these costs, or perhaps a review of your cost breakdown?";
+        }
+        return "Provide specifics about your planned operations, scale, or unique needs for a startup cost estimate.";
+      case 'market_research':
+        if (completedTaskLabels.includes("Market research and competitive analysis")) {
+            return "Market research task is complete. Need to dive deeper into a specific competitor, trend, or generate marketing ideas based on your research?";
+        }
+        return "Describe your business type and target market for a research summary.";
+      case 'grant_finder':
+        return "Provide a comprehensive description of your business, its goals, impact, and what you might use grant funding for.";
+      default:
+        return "Provide context for your request...";
+    }
+  };
 
   const renderGrantSuggestions = (grantData: GrantFinderOutput) => {
     return (
@@ -182,7 +244,7 @@ export function AIBusinessAdvisor() {
           AI Business Advisor
         </CardTitle>
         <CardDescription>
-          Ask for tailored advice based on your business needs. Select a query type and provide details.
+          Ask for tailored advice based on your business needs. Select a query type and provide details. Your progress from checklists is considered!
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -300,18 +362,14 @@ export function AIBusinessAdvisor() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    {queryType === 'business_plan' || queryType === 'grant_finder' ? "Detailed Business Description" :
-                     queryType === 'cost_estimation' ? "Additional Context / Business Details" :
+                    {queryType === 'business_plan' ? "Business Description / Plan Section to Refine" :
+                     queryType === 'grant_finder' ? "Detailed Business Description for Grant Search" :
+                     queryType === 'cost_estimation' ? "Business Details for Cost Estimation" :
                      "Details / Context for your request"}
                   </FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder={
-                         queryType === 'business_plan' ? "Describe your business idea, mission, products/services, target market, etc." :
-                         queryType === 'grant_finder' ? "Provide a comprehensive description of your business, its goals, impact, and what you might use grant funding for." :
-                         queryType === 'cost_estimation' ? "Any specifics about your planned operations, scale, or unique needs." :
-                         "Provide context for your request..."
-                      }
+                      placeholder={getDynamicPlaceholder()}
                       className="resize-none"
                       rows={5}
                       {...field}

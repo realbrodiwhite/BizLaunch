@@ -2,7 +2,7 @@
 import { Sidebar, SidebarContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
 import { Briefcase, Rocket, Settings, LineChart, Home as HomeIcon, Target, FileText, DollarSign, Building, CreditCard, PiggyBank, MapPin, Landmark, Users, ClipboardCheck, Banknote, ShieldCheck, ShoppingBag, BarChart2, Laptop, Siren, HeartHandshake, LandmarkIcon, Award, Trophy, Star, CheckCircle } from 'lucide-react'; // Keep top-level imports for inline rendering in this Server Component
 import { Button } from "@/components/ui/button";
-import { AIBusinessAdvisor } from "@/components/AIBusinessAdvisor";
+import { AIBusinessAdvisor, type AdvisorTaskInfo } from "@/components/AIBusinessAdvisor";
 import { InteractiveChecklist, type TaskWithAchievement } from "@/components/InteractiveChecklist";
 import { ResourceHub } from "@/components/ResourceHub";
 import { AchievementsDisplay } from "@/components/AchievementsDisplay";
@@ -73,6 +73,13 @@ const allAchievements: Achievement[] = [
     iconName: task.achievementIconName,
 }));
 
+const allTasksForAdvisor: AdvisorTaskInfo[] = [
+  ...planTasks,
+  ...launchTasks,
+  ...manageTasks,
+  ...growTasks,
+].map(task => ({ id: task.id, label: task.label }));
+
 
 export default function HomePage() {
   return (
@@ -139,7 +146,7 @@ export default function HomePage() {
 
         <p className="text-muted-foreground mb-8">Your comprehensive guide to planning, launching, managing, and growing your business. Use the navigation on the left to explore different stages, track your achievements, or ask our AI Business Advisor for personalized guidance.</p>
 
-        <AIBusinessAdvisor />
+        <AIBusinessAdvisor allTasks={allTasksForAdvisor} />
 
         <Tabs defaultValue="plan" className="mt-12">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
