@@ -126,9 +126,10 @@ const getTaskDetails = (taskId: string, taskActions: TaskActions): React.ReactNo
         <div className="space-y-2">
           <Input 
             type="file" 
+            aria-label="Upload registration document"
             accept=".pdf,.doc,.docx,.jpg,.png" 
             onChange={(e) => taskActions.setSelectedFile(e.target.files ? e.target.files[0] : null)} 
-            className="max-w-sm"
+            className="max-w-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
           />
           {taskActions.selectedFile && <p className="text-xs text-muted-foreground">Selected: {taskActions.selectedFile.name}</p>}
           <Button 
@@ -342,7 +343,7 @@ export default function DashboardPage() {
 
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar side="left" variant="sidebar" collapsible="icon">
           <SidebarHeader className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
@@ -379,28 +380,28 @@ export default function DashboardPage() {
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>
-      <SidebarInset className="p-6" id="top">
+      <SidebarInset className="p-4 sm:p-6 flex-1" id="top">
         <div className="flex justify-between items-center mb-6">
-           <h2 className="text-3xl font-semibold text-foreground">Welcome to Your BizLaunch Dashboard</h2>
+           <h2 className="text-2xl sm:text-3xl font-semibold text-foreground">Welcome to Your BizLaunch Dashboard</h2>
            <SidebarTrigger className="md:hidden"/>
         </div>
 
-        <p className="text-muted-foreground mb-8">Your comprehensive guide to planning, launching, managing, and growing your business. Start with the wizard below, track your achievements, or ask our AI Business Advisor for personalized guidance.</p>
+        <p className="text-muted-foreground mb-8 text-sm sm:text-base">Your comprehensive guide to planning, launching, managing, and growing your business. Start with the wizard below, track your achievements, or ask our AI Business Advisor for personalized guidance.</p>
         
         <AIBusinessAdvisor allTasks={allTasksForAdvisor} />
 
         <div id="wizard" className="mt-12 pt-12 border-t scroll-mt-20">
           <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle className="text-2xl font-semibold text-primary flex items-center gap-2">
-                <CurrentStageIcon className="w-6 h-6" />
+              <CardTitle className="text-xl sm:text-2xl font-semibold text-primary flex items-center gap-2">
+                <CurrentStageIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                 {currentTask.stageTitle} - Step {tasks.filter(t => t.stageKey === currentTask.stageKey).findIndex(t => t.id === currentTask.id) + 1} of {tasks.filter(t => t.stageKey === currentTask.stageKey).length}
               </CardTitle>
-              <CardDescription>Follow these steps to build and grow your business. (Overall Progress: {currentTaskIndex + 1} of {tasks.length})</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Follow these steps to build and grow your business. (Overall Progress: {currentTaskIndex + 1} of {tasks.length})</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <Label htmlFor={`task-${currentTask.id}`} className="text-xl font-semibold text-foreground mb-2 block">
+                <Label htmlFor={`task-${currentTask.id}`} className="text-lg sm:text-xl font-semibold text-foreground mb-2 block">
                   {currentTask.label}
                 </Label>
                 <div className="flex items-center space-x-3 p-3 border rounded-md bg-secondary shadow-sm">
@@ -411,7 +412,7 @@ export default function DashboardPage() {
                     aria-labelledby={`task-${currentTask.id}-label`}
                     disabled={isUploading || (currentTask.requiresUpload && !currentTask.completed)}
                   />
-                  <p id={`task-${currentTask.id}-label`} className="text-sm text-secondary-foreground flex-1">
+                  <p id={`task-${currentTask.id}-label`} className="text-xs sm:text-sm text-secondary-foreground flex-1">
                     {currentTask.requiresUpload && !currentTask.completed ? "Complete by uploading document below." : "Mark this task as completed."}
                   </p>
                 </div>
@@ -425,17 +426,17 @@ export default function DashboardPage() {
               <Separator className="my-6" />
 
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Stage Progress ({currentTask.stageTitle}):</p>
-                <Progress value={stageProgress} className="w-full h-2 mb-4" />
-                <p className="text-sm text-muted-foreground mb-1">Overall Progress:</p>
-                <Progress value={overallProgress} className="w-full h-2" />
+                <p className="text-xs sm:text-sm text-muted-foreground mb-1">Stage Progress ({currentTask.stageTitle}):</p>
+                <Progress value={stageProgress} className="w-full h-2 mb-4" aria-label={`Stage progress for ${currentTask.stageTitle}: ${stageProgress.toFixed(0)}%`} />
+                <p className="text-xs sm:text-sm text-muted-foreground mb-1">Overall Progress:</p>
+                <Progress value={overallProgress} className="w-full h-2" aria-label={`Overall progress: ${overallProgress.toFixed(0)}%`} />
               </div>
 
-              <div className="flex justify-between mt-6">
-                <Button onClick={goToPreviousTask} disabled={currentTaskIndex === 0 || isUploading} variant="outline">
+              <div className="flex flex-col sm:flex-row justify-between mt-6 gap-3 sm:gap-0">
+                <Button onClick={goToPreviousTask} disabled={currentTaskIndex === 0 || isUploading} variant="outline" className="w-full sm:w-auto">
                   <ArrowLeft className="mr-2 h-4 w-4" /> Previous Task
                 </Button>
-                <Button onClick={goToNextTask} disabled={currentTaskIndex === tasks.length - 1 || isUploading} className="bg-primary hover:bg-primary/90">
+                <Button onClick={goToNextTask} disabled={currentTaskIndex === tasks.length - 1 || isUploading} className="bg-primary hover:bg-primary/90 w-full sm:w-auto">
                   Next Task <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -445,7 +446,7 @@ export default function DashboardPage() {
 
 
         <div id="achievements" className="mt-12 pt-12 border-t scroll-mt-20">
-            <h3 className="text-2xl font-semibold mb-6 text-primary flex items-center gap-2"><Trophy/> Achievements</h3>
+            <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-primary flex items-center gap-2"><Trophy className="w-5 h-5 sm:w-6 sm:h-6"/> Achievements</h3>
             <AchievementsDisplay allAchievements={allAchievements} stageKeys={['plan', 'launch', 'manage', 'grow']} />
         </div>
 
@@ -457,3 +458,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

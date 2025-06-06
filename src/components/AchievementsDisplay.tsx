@@ -1,3 +1,4 @@
+
 // src/components/AchievementsDisplay.tsx
 "use client";
 
@@ -57,8 +58,8 @@ export function AchievementsDisplay({ allAchievements, stageKeys }: Achievements
 
   return (
     <Card className="shadow-md">
-      <CardHeader>
-         {/* CardTitle already exists in page.tsx */}
+      <CardHeader className="pb-4">
+         {/* CardTitle is handled in the parent page.tsx for section heading */}
         <CardDescription>
           Track your progress and unlock achievements as you complete tasks.
         </CardDescription>
@@ -70,7 +71,7 @@ export function AchievementsDisplay({ allAchievements, stageKeys }: Achievements
             <Trophy className="w-5 h-5" /> Earned ({earnedAchievements.length})
           </h4>
           {earnedAchievements.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {earnedAchievements.map((ach) => (
                 <Card key={ach.id} className="bg-secondary border-accent shadow-sm">
                   <CardContent className="p-4 flex flex-col items-center text-center">
@@ -92,7 +93,7 @@ export function AchievementsDisplay({ allAchievements, stageKeys }: Achievements
             <Lock className="w-5 h-5" /> Locked ({lockedAchievements.length})
           </h4>
           {lockedAchievements.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {lockedAchievements.map((ach) => (
                  <Card key={ach.id} className="bg-card border-border shadow-sm opacity-60">
                   <CardContent className="p-4 flex flex-col items-center text-center">
@@ -111,3 +112,4 @@ export function AchievementsDisplay({ allAchievements, stageKeys }: Achievements
     </Card>
   );
 }
+

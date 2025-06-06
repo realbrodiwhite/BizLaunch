@@ -1,3 +1,4 @@
+
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -22,14 +23,14 @@ export default function LandingPage() {
       <main className="flex-grow">
         {/* Hero Section */}
         <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 text-center">
-          <h2 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-foreground mb-6 leading-tight">
+          <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-foreground mb-6 leading-tight">
             Turn Your Business Idea into <span className="text-accent">Reality</span>.
           </h2>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-12">
+          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-10 sm:mb-12">
             BizLaunch provides the tools, step-by-step guidance, and AI-powered insights you need to confidently plan, launch, and grow your successful business.
           </p>
           <Link href="/dashboard">
-            <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-transform hover:scale-105 py-3 px-8 text-lg rounded-lg">
+            <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-transform hover:scale-105 py-3 px-6 sm:px-8 text-base sm:text-lg rounded-lg">
               Start Your Journey <Rocket className="ml-2 h-5 w-5" />
             </Button>
           </Link>
@@ -38,43 +39,43 @@ export default function LandingPage() {
         {/* Features Section */}
         <section className="py-16 md:py-24 bg-secondary/30">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <h3 className="text-4xl font-bold text-center text-foreground mb-20">Why Entrepreneurs Choose BizLaunch</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <h3 className="text-3xl sm:text-4xl font-bold text-center text-foreground mb-16 sm:mb-20">Why Entrepreneurs Choose BizLaunch</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
               <Card className="shadow-xl hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-card rounded-xl overflow-hidden">
                 <CardHeader className="items-center text-center p-6 bg-primary/5">
-                  <div className="p-4 bg-primary/10 rounded-full mb-4 inline-block ring-4 ring-primary/20">
-                    <Brain className="w-10 h-10 text-primary" />
+                  <div className="p-3 sm:p-4 bg-primary/10 rounded-full mb-4 inline-block ring-2 sm:ring-4 ring-primary/20">
+                    <Brain className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
                   </div>
-                  <CardTitle className="text-2xl">AI Business Advisor</CardTitle>
+                  <CardTitle className="text-xl sm:text-2xl">AI Business Advisor</CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <p className="text-muted-foreground text-center text-base">
+                  <p className="text-muted-foreground text-center text-sm sm:text-base">
                     Get personalized advice, generate business plans, estimate costs, and draft communications with our intelligent AI assistant.
                   </p>
                 </CardContent>
               </Card>
               <Card className="shadow-xl hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-card rounded-xl overflow-hidden">
                 <CardHeader className="items-center text-center p-6 bg-accent/5">
-                  <div className="p-4 bg-accent/10 rounded-full mb-4 inline-block ring-4 ring-accent/20">
-                   <Rocket className="w-10 h-10 text-accent" />
+                  <div className="p-3 sm:p-4 bg-accent/10 rounded-full mb-4 inline-block ring-2 sm:ring-4 ring-accent/20">
+                   <Rocket className="w-8 h-8 sm:w-10 sm:h-10 text-accent" />
                   </div>
-                  <CardTitle className="text-2xl">Step-by-Step Wizard</CardTitle>
+                  <CardTitle className="text-xl sm:text-2xl">Step-by-Step Wizard</CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <p className="text-muted-foreground text-center text-base">
+                  <p className="text-muted-foreground text-center text-sm sm:text-base">
                     Navigate the complexities of starting a business with our guided checklists, covering planning, launching, managing, and growing.
                   </p>
                 </CardContent>
               </Card>
               <Card className="shadow-xl hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-card rounded-xl overflow-hidden">
                 <CardHeader className="items-center text-center p-6 bg-green-500/5">
-                   <div className="p-4 bg-green-500/10 rounded-full mb-4 inline-block ring-4 ring-green-500/20">
-                    <Trophy className="w-10 h-10 text-green-600" />
+                   <div className="p-3 sm:p-4 bg-green-500/10 rounded-full mb-4 inline-block ring-2 sm:ring-4 ring-green-500/20">
+                    <Trophy className="w-8 h-8 sm:w-10 sm:h-10 text-green-600" />
                   </div>
-                  <CardTitle className="text-2xl">Achievement Tracking</CardTitle>
+                  <CardTitle className="text-xl sm:text-2xl">Achievement Tracking</CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <p className="text-muted-foreground text-center text-base">
+                  <p className="text-muted-foreground text-center text-sm sm:text-base">
                     Stay motivated by unlocking achievements as you complete crucial milestones on your entrepreneurial journey.
                   </p>
                 </CardContent>
@@ -85,23 +86,23 @@ export default function LandingPage() {
 
         {/* Image Section */}
         <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
-          <div className="bg-card p-8 md:p-12 rounded-xl shadow-2xl flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
+          <div className="bg-card p-6 sm:p-8 md:p-12 rounded-xl shadow-2xl flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
             <div className="lg:w-1/2 text-center lg:text-left">
-              <h3 className="text-4xl font-bold text-foreground mb-6">Visualize Your Success Story</h3>
-              <p className="text-muted-foreground text-lg mb-8">
+              <h3 className="text-3xl sm:text-4xl font-bold text-foreground mb-6">Visualize Your Success Story</h3>
+              <p className="text-muted-foreground text-base sm:text-lg mb-8">
                 Our platform is designed to be intuitive and empowering, helping you focus on what matters most: building your dream business with clarity and confidence.
               </p>
               <Link href="/dashboard">
-                <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary/5 hover:text-primary text-base py-3 px-8 rounded-lg">Explore the Dashboard</Button>
+                <Button variant="outline" size="lg" className="border-primary text-primary hover:bg-primary/5 hover:text-primary text-sm sm:text-base py-3 px-6 sm:px-8 rounded-lg">Explore the Dashboard</Button>
               </Link>
             </div>
-            <div className="lg:w-1/2 mt-8 lg:mt-0">
+            <div className="lg:w-1/2 mt-8 lg:mt-0 w-full">
               <Image
                 src="https://placehold.co/600x400.png"
-                alt="BizLaunch Dashboard Preview"
+                alt="BizLaunch Dashboard Preview showing charts and tasks"
                 width={600}
                 height={400}
-                className="rounded-lg shadow-xl object-cover"
+                className="rounded-lg shadow-xl object-cover w-full h-auto"
                 data-ai-hint="business dashboard"
               />
             </div>
@@ -110,7 +111,7 @@ export default function LandingPage() {
       </main>
 
       <footer className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 text-center border-t mt-12">
-        <p className="text-muted-foreground">&copy; {new Date().getFullYear()} BizLaunch. All rights reserved. Your partner in entrepreneurial success.</p>
+        <p className="text-muted-foreground text-sm">&copy; {new Date().getFullYear()} BizLaunch. All rights reserved. Your partner in entrepreneurial success.</p>
       </footer>
     </div>
   );
