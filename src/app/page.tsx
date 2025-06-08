@@ -101,7 +101,7 @@ export default function LandingPage() {
         {/* Hero Section */}
         <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 text-center">
           <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-foreground mb-6 leading-tight">
-            Turn Your Business Idea into <span className="text-accent">Reality</span>.
+            Turn Your Business Idea into Reality with <span className="text-accent">BizLaunch</span>.
           </h2>
           <p className="text-md sm:text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-10 sm:mb-12">
             BizLaunch provides the tools, step-by-step guidance, and AI-powered insights you need to confidently plan, launch, and grow your successful business.
