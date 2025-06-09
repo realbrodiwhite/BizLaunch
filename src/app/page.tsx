@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Rocket, Brain, Trophy, DraftingCompass, LogIn, UserPlus, CheckCircle, Zap, Users, Building } from 'lucide-react';
+import { Rocket, Brain, Trophy, LogIn, UserPlus, CheckCircle, Zap, Users, Building } from 'lucide-react';
 
 export default function LandingPage() {
   const pricingTiers = [
@@ -80,7 +80,7 @@ export default function LandingPage() {
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-background via-secondary/20 to-background">
       <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 flex justify-between items-center sticky top-0 z-50 bg-background/80 backdrop-blur-md shadow-sm">
         <Link href="/" className="flex items-center gap-3">
-          <DraftingCompass className="w-8 h-8 text-primary" />
+          <Rocket className="w-8 h-8 text-primary" />
           <h1 className="text-3xl font-bold text-primary tracking-tight">BizLaunch</h1>
         </Link>
         <nav className="flex items-center gap-2 sm:gap-3">

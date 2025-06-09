@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link'; // Import Link
 import { Sidebar, SidebarContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
-import { Briefcase, Rocket, Settings, LineChart, Home as HomeIcon, Target, FileText, DollarSign, Building, CreditCard, PiggyBank, MapPin, Landmark, Users, ClipboardCheck, Banknote, ShieldCheck, ShoppingBag, BarChart2, Laptop, Siren, HeartHandshake, LandmarkIcon, Award, Trophy, Star, CheckCircle, ArrowLeft, ArrowRight, Link as LinkIcon, Search, MessageSquareQuote, Mail, Send, UploadCloud, DraftingCompass, Wand2 } from 'lucide-react';
+import { Briefcase, Rocket, Settings, LineChart, Home as HomeIcon, Target, FileText, DollarSign, Building, CreditCard, PiggyBank, MapPin, Landmark, Users, ClipboardCheck, Banknote, ShieldCheck, ShoppingBag, BarChart2, Laptop, Siren, HeartHandshake, LandmarkIcon, Award, Trophy, Star, CheckCircle, ArrowLeft, ArrowRight, Link as LinkIcon, Search, MessageSquareQuote, Mail, Send, UploadCloud, Wand2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { AIBusinessAdvisor, type AdvisorTaskInfo } from "@/components/AIBusinessAdvisor";
 import { ResourceHub } from "@/components/ResourceHub";
@@ -17,7 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { updateAchievementStatus, getAchievementStatus } from '@/lib/achievementUtils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input'; // For file input styling
+import { Input } from '@/components/ui/input'; // For file input styling
 import { toast } from "@/hooks/use-toast";
 import { storage } from '@/lib/firebase'; // Firebase storage instance
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -371,7 +371,7 @@ export default function DashboardPage() {
       <Sidebar side="left" variant="sidebar" collapsible="icon">
           <SidebarHeader className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <DraftingCompass className="w-8 h-8 text-primary" />
+              <Rocket className="w-8 h-8 text-primary" />
               <h1 className="text-2xl font-bold text-primary group-data-[collapsible=icon]:hidden tracking-tight">BizLaunch</h1>
             </div>
           </SidebarHeader>
@@ -491,5 +491,3 @@ export default function DashboardPage() {
   );
 }
 
-
-    

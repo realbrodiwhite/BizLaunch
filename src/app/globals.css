@@ -9,15 +9,15 @@ body {
 @layer base {
   :root {
     --background: 0 0% 100%; /* White */
-    --foreground: 0 0% 3.9%; /* Default Dark Text */
+    --foreground: 222 53% 23%; /* Dark Navy Blue #1A2F5A - CHANGED */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 222 53% 23%; /* Dark Navy Blue #1A2F5A - CHANGED */
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
+    --popover-foreground: 222 53% 23%; /* Dark Navy Blue #1A2F5A - CHANGED */
     --primary: 222 53% 23%; /* Dark Navy Blue #1A2F5A */
     --primary-foreground: 0 0% 98%; /* Almost White */
     --secondary: 0 0% 94.1%; /* Light Gray #F0F0F0 */
-    --secondary-foreground: 0 0% 9%; /* Dark Text */
+    --secondary-foreground: 222 53% 23%; /* Dark Navy Blue #1A2F5A - CHANGED */
     --muted: 0 0% 90%; /* Slightly darker gray than secondary */
     --muted-foreground: 0 0% 45.1%; /* Gray Text */
     --accent: 326 89% 47%; /* Pink Panther #E20C88 */

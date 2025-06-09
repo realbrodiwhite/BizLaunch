@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { DraftingCompass, UserPlus } from 'lucide-react';
+import { Rocket, UserPlus } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
 import { auth } from '@/lib/firebase'; // Import Firebase auth instance
 import { createUserWithEmailAndPassword } from 'firebase/auth'; // Import Firebase auth function
@@ -75,7 +75,7 @@ export default function SignUpPage() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
            <Link href="/" className="inline-block mb-4">
-            <DraftingCompass className="w-10 h-10 text-primary mx-auto" />
+            <Rocket className="w-10 h-10 text-primary mx-auto" />
           </Link>
           <CardTitle className="text-2xl font-bold text-foreground">Create Your BizLaunch Account</CardTitle>
           <CardDescription>Join us to start planning and growing your business.</CardDescription>
