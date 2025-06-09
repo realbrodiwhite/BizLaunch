@@ -75,7 +75,7 @@ export default function SignUpPage() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
            <Link href="/" className="inline-block mb-4">
-            <Rocket className="w-10 h-10 text-primary mx-auto" />
+            <Rocket className="w-10 h-10 text-accent mx-auto" />
           </Link>
           <CardTitle className="text-2xl font-bold text-foreground">Create Your BizLaunch Account</CardTitle>
           <CardDescription>Join us to start planning and growing your business.</CardDescription>

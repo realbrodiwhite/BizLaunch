@@ -371,7 +371,7 @@ export default function DashboardPage() {
       <Sidebar side="left" variant="sidebar" collapsible="icon">
           <SidebarHeader className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <Rocket className="w-8 h-8 text-primary" />
+              <Rocket className="w-8 h-8 text-accent" />
               <h1 className="text-2xl font-bold text-primary group-data-[collapsible=icon]:hidden tracking-tight">BizLaunch</h1>
             </div>
           </SidebarHeader>
