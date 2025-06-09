@@ -2,8 +2,9 @@
 "use client"; 
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link'; // Import Link
 import { Sidebar, SidebarContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
-import { Briefcase, Rocket, Settings, LineChart, Home as HomeIcon, Target, FileText, DollarSign, Building, CreditCard, PiggyBank, MapPin, Landmark, Users, ClipboardCheck, Banknote, ShieldCheck, ShoppingBag, BarChart2, Laptop, Siren, HeartHandshake, LandmarkIcon, Award, Trophy, Star, CheckCircle, ArrowLeft, ArrowRight, Link as LinkIcon, Search, MessageSquareQuote, Mail, Send, UploadCloud, DraftingCompass } from 'lucide-react';
+import { Briefcase, Rocket, Settings, LineChart, Home as HomeIcon, Target, FileText, DollarSign, Building, CreditCard, PiggyBank, MapPin, Landmark, Users, ClipboardCheck, Banknote, ShieldCheck, ShoppingBag, BarChart2, Laptop, Siren, HeartHandshake, LandmarkIcon, Award, Trophy, Star, CheckCircle, ArrowLeft, ArrowRight, Link as LinkIcon, Search, MessageSquareQuote, Mail, Send, UploadCloud, DraftingCompass, Wand2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { AIBusinessAdvisor, type AdvisorTaskInfo } from "@/components/AIBusinessAdvisor";
 import { ResourceHub } from "@/components/ResourceHub";
@@ -15,8 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { updateAchievementStatus, getAchievementStatus } from '@/lib/achievementUtils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Input } from '@/components/ui/input'; // For file input styling
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input'; // For file input styling
 import { toast } from "@/hooks/use-toast";
 import { storage } from '@/lib/firebase'; // Firebase storage instance
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -27,6 +28,8 @@ export interface WizardTask extends TaskWithAchievement {
   stageIcon: React.ElementType;
   details: React.ReactNode | ((actions: TaskActions) => React.ReactNode); // Allow function for dynamic details
   requiresUpload?: boolean; // Optional flag for tasks requiring upload
+  isInteractiveTool?: boolean; // Flag if this task links to an interactive tool
+  interactiveToolLink?: string; // Link to the interactive tool
 }
 
 interface TaskWithAchievement {
@@ -48,7 +51,7 @@ interface TaskActions {
 
 const planTasksRaw: Omit<WizardTask, 'completed' | 'stageIcon' | 'details'>[] = [
   { id: 'market-research', label: 'Market research and competitive analysis', achievementName: 'Market Maven', achievementDescription: 'Completed initial market research.', achievementIconName: 'Target', stageKey: 'plan', stageTitle: 'Plan Your Business' },
-  { id: 'business-plan', label: 'Write your business plan', achievementName: 'Master Planner', achievementDescription: 'Drafted the business plan.', achievementIconName: 'FileText', stageKey: 'plan', stageTitle: 'Plan Your Business' },
+  { id: 'business-plan', label: 'Write your business plan', achievementName: 'Master Planner', achievementDescription: 'Drafted the business plan.', achievementIconName: 'FileText', stageKey: 'plan', stageTitle: 'Plan Your Business', isInteractiveTool: true, interactiveToolLink: '/dashboard/business-plan' },
   { id: 'startup-costs', label: 'Calculate your startup costs', achievementName: 'Cost Calculator', achievementDescription: 'Calculated initial startup costs.', achievementIconName: 'DollarSign', stageKey: 'plan', stageTitle: 'Plan Your Business' },
   { id: 'business-credit', label: 'Establish business credit', achievementName: 'Credit Conscious', achievementDescription: 'Learned about business credit.', achievementIconName: 'CreditCard', stageKey: 'plan', stageTitle: 'Plan Your Business' },
   { id: 'fund-business', label: 'Fund your business', achievementName: 'Funding Finder', achievementDescription: 'Explored funding options.', achievementIconName: 'PiggyBank', stageKey: 'plan', stageTitle: 'Plan Your Business' },
@@ -105,10 +108,23 @@ const stageIcons = {
   grow: LineChart,
 };
 
-const getTaskDetails = (taskId: string, taskActions: TaskActions): React.ReactNode => {
+const getTaskDetails = (taskId: string, taskActions: TaskActions, task: WizardTask): React.ReactNode => {
+   if (task.isInteractiveTool && task.interactiveToolLink) {
+    return (
+      <div>
+        <p className="mb-3">This task involves using an interactive tool. Click the button below to go to the dedicated page for this activity.</p>
+        <Link href={task.interactiveToolLink} passHref>
+          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Wand2 className="mr-2 h-4 w-4" /> Open {task.label} Tool
+          </Button>
+        </Link>
+        <p className="mt-3 text-xs text-muted-foreground">Completing the interactive tool will help you fulfill this step. You can mark this task complete here once you're satisfied with your work in the tool.</p>
+      </div>
+    );
+  }
   switch (taskId) {
     case 'market-research': return (<div><p className="mb-2">Understand your customers, industry, and competitors. This involves:</p><ul className="list-disc pl-5 space-y-1"><li>Identifying your target audience and their needs.</li><li>Analyzing market size, trends, and growth potential.</li><li>Researching your direct and indirect competitors, their strengths, and weaknesses.</li><li>Explore resources like the <a href="https://www.sba.gov/business-guide/plan-your-business/market-research-competitive-analysis" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA's Market Research Guide <LinkIcon className="inline w-3 h-3"/></a>.</li></ul></div>);
-    case 'business-plan': return (<div><p className="mb-2">Create a comprehensive roadmap for your business. Common sections include:</p><ul className="list-disc pl-5 space-y-1"><li><strong>Executive Summary:</strong> A brief overview of your entire plan.</li><li><strong>Company Description:</strong> Detail your business, mission, vision, and legal structure.</li><li><strong>Market Analysis:</strong> Summarize your market research findings.</li><li><strong>Organization and Management:</strong> Outline your business and management structure.</li><li><strong>Service or Product Line:</strong> Describe what you're selling and its benefits.</li><li><strong>Marketing and Sales Strategy:</strong> How you'll reach and sell to customers.</li><li><strong>Funding Request (if applicable):</strong> How much money you need and how it will be used.</li><li><strong>Financial Projections:</strong> Forecasts for revenue, expenses, and profitability.</li><li><strong>Appendix (optional):</strong> Supporting documents like resumes, permits, etc.</li></ul><p className="mt-2">Use templates from <a href="https://www.sba.gov/business-guide/plan-your-business/write-your-business-plan" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA <LinkIcon className="inline w-3 h-3"/></a> or <a href="https://www.score.org/business-plan-templates" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SCORE <LinkIcon className="inline w-3 h-3"/></a>. The AI Business Advisor can help draft sections.</p></div>);
+    // case 'business-plan': return (<div><p className="mb-2">Create a comprehensive roadmap for your business. Common sections include:</p><ul className="list-disc pl-5 space-y-1"><li><strong>Executive Summary:</strong> A brief overview of your entire plan.</li><li><strong>Company Description:</strong> Detail your business, mission, vision, and legal structure.</li><li><strong>Market Analysis:</strong> Summarize your market research findings.</li><li><strong>Organization and Management:</strong> Outline your business and management structure.</li><li><strong>Service or Product Line:</strong> Describe what you're selling and its benefits.</li><li><strong>Marketing and Sales Strategy:</strong> How you'll reach and sell to customers.</li><li><strong>Funding Request (if applicable):</strong> How much money you need and how it will be used.</li><li><strong>Financial Projections:</strong> Forecasts for revenue, expenses, and profitability.</li><li><strong>Appendix (optional):</strong> Supporting documents like resumes, permits, etc.</li></ul><p className="mt-2">Use templates from <a href="https://www.sba.gov/business-guide/plan-your-business/write-your-business-plan" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA <LinkIcon className="inline w-3 h-3"/></a> or <a href="https://www.score.org/business-plan-templates" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SCORE <LinkIcon className="inline w-3 h-3"/></a>. The AI Business Advisor can help draft sections.</p></div>);
     case 'startup-costs': return (<div><p className="mb-2">Estimate the initial investment needed to launch. Consider costs like:</p><ul className="list-disc pl-5 space-y-1"><li>Office space (rent, utilities)</li><li>Equipment and supplies</li><li>Initial inventory</li><li>Licenses and permits</li><li>Insurance</li><li>Marketing and advertising (website, initial campaigns)</li><li>Salaries (if applicable)</li><li>Legal and professional fees</li></ul><p className="mt-2">The <a href="https://www.sba.gov/business-guide/plan-your-business/calculate-your-startup-costs" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA <LinkIcon className="inline w-3 h-3"/></a> offers guidance. Our AI Advisor can also help estimate costs.</p></div>);
     case 'business-credit': return (<div><p className="mb-2">Establishing business credit is crucial for securing loans, getting favorable terms from suppliers, and separating your personal and business finances. Aim to:</p><ul className="list-disc pl-5 space-y-1"><li><strong>Understand Creditworthiness:</strong> Learn what factors contribute to a good business credit score.</li><li><strong>Register Your Business:</strong> Formally establish your business entity.</li><li><strong>Open a Business Bank Account:</strong> Keep business finances separate.</li><li><strong>Get an EIN:</strong> Obtain an Employer Identification Number from the IRS, even if you don't have employees.</li><li><strong>Establish Trade Lines:</strong> Work with vendors and suppliers who report payments to business credit bureaus.</li><li><strong>Monitor Your Credit:</strong> Regularly check your business credit reports for accuracy.</li></ul><p className="mt-2">Read more at the <a href="https://www.sba.gov/business-guide/launch-your-business/establish-business-credit" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA's guide to establishing business credit <LinkIcon className="inline w-3 h-3"/></a>.</p></div>);
     case 'fund-business': return (<div><p className="mb-2">Explore various options to finance your startup and growth. Consider the following steps:</p><ul className="list-disc pl-5 space-y-1"><li><strong>Assess Your Needs:</strong> Determine how much funding you require based on your startup cost calculations and business plan.</li><li><strong>Explore Self-Funding (Bootstrapping):</strong> Using personal savings or revenue generated by the business.</li><li><strong>Research Loans:</strong> Investigate options like <a href="https://www.sba.gov/funding-programs/loans" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA loans <LinkIcon className="inline w-3 h-3"/></a>, bank loans, or microloans.</li><li><strong>Seek Grants:</strong> Use our AI Grant Finder tool (in the AI Business Advisor section) and platforms like <a href="https://www.grants.gov/" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">Grants.gov <LinkIcon className="inline w-3 h-3"/></a>. Focus on grants specific to your industry, location, or business type.</li><li><strong>Consider Investors:</strong> Angel investors or venture capital might be an option for high-growth potential businesses. Prepare a pitch deck (our AI Advisor can help!).</li><li><strong>Look into Crowdfunding:</strong> Platforms like Kickstarter or Indiegogo can help raise funds from a large number of people.</li></ul><p className="mt-2">The <a href="https://www.sba.gov/business-guide/plan-your-business/fund-your-business" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA provides an overview of funding options <LinkIcon className="inline w-3 h-3"/></a>.</p></div>);
@@ -191,10 +207,10 @@ const getTaskDetails = (taskId: string, taskActions: TaskActions): React.ReactNo
 };
 
 const wizardTasks: WizardTask[] = [
-  ...planTasksRaw.map(task => ({ ...task, completed: false, stageIcon: stageIcons[task.stageKey], details: (actions: TaskActions) => getTaskDetails(task.id, actions) })),
-  ...launchTasksRaw.map(task => ({ ...task, completed: false, stageIcon: stageIcons[task.stageKey], details: (actions: TaskActions) => getTaskDetails(task.id, actions) })),
-  ...manageTasksRaw.map(task => ({ ...task, completed: false, stageIcon: stageIcons[task.stageKey], details: (actions: TaskActions) => getTaskDetails(task.id, actions) })),
-  ...growTasksRaw.map(task => ({ ...task, completed: false, stageIcon: stageIcons[task.stageKey], details: (actions: TaskActions) => getTaskDetails(task.id, actions) })),
+  ...planTasksRaw.map(task => ({ ...task, completed: false, stageIcon: stageIcons[task.stageKey], details: (actions: TaskActions) => getTaskDetails(task.id, actions, task as WizardTask) })),
+  ...launchTasksRaw.map(task => ({ ...task, completed: false, stageIcon: stageIcons[task.stageKey], details: (actions: TaskActions) => getTaskDetails(task.id, actions, task as WizardTask) })),
+  ...manageTasksRaw.map(task => ({ ...task, completed: false, stageIcon: stageIcons[task.stageKey], details: (actions: TaskActions) => getTaskDetails(task.id, actions, task as WizardTask) })),
+  ...growTasksRaw.map(task => ({ ...task, completed: false, stageIcon: stageIcons[task.stageKey], details: (actions: TaskActions) => getTaskDetails(task.id, actions, task as WizardTask) })),
 ];
 
 const allAchievements: Achievement[] = wizardTasks.map(task => ({
@@ -374,6 +390,12 @@ export default function DashboardPage() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
+                <SidebarMenuButton href="/dashboard/business-plan" tooltip="Interactive Business Plan">
+                  <Wand2 /> 
+                  <span>Business Plan Tool</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
                 <SidebarMenuButton href="#achievements" tooltip="Achievements">
                   <Trophy />
                   <span>Achievements</span>
@@ -412,18 +434,20 @@ export default function DashboardPage() {
                 <Label htmlFor={`task-${currentTask.id}`} className="text-lg sm:text-xl font-semibold text-foreground mb-2 block">
                   {currentTask.label}
                 </Label>
-                <div className="flex items-center space-x-3 p-3 border rounded-md bg-secondary shadow-sm">
-                  <Checkbox
-                    id={`task-${currentTask.id}`}
-                    checked={currentTask.completed}
-                    onCheckedChange={() => handleCheckChange(currentTask.id)}
-                    aria-labelledby={`task-${currentTask.id}-label`}
-                    disabled={isUploading || (currentTask.requiresUpload && !currentTask.completed)}
-                  />
-                  <p id={`task-${currentTask.id}-label`} className="text-xs sm:text-sm text-secondary-foreground flex-1">
-                    {currentTask.requiresUpload && !currentTask.completed ? "Complete by uploading document below." : "Mark this task as completed."}
-                  </p>
-                </div>
+                { !currentTask.isInteractiveTool && (
+                    <div className="flex items-center space-x-3 p-3 border rounded-md bg-secondary shadow-sm">
+                    <Checkbox
+                        id={`task-${currentTask.id}`}
+                        checked={currentTask.completed}
+                        onCheckedChange={() => handleCheckChange(currentTask.id)}
+                        aria-labelledby={`task-${currentTask.id}-label`}
+                        disabled={isUploading || (currentTask.requiresUpload && !currentTask.completed)}
+                    />
+                    <p id={`task-${currentTask.id}-label`} className="text-xs sm:text-sm text-secondary-foreground flex-1">
+                        {currentTask.requiresUpload && !currentTask.completed ? "Complete by uploading document below." : "Mark this task as completed."}
+                    </p>
+                    </div>
+                )}
               </div>
 
               <div className="mt-4 p-4 border rounded-md bg-background text-sm text-muted-foreground space-y-2 prose prose-sm max-w-none prose-ul:list-disc prose-ul:pl-5 prose-li:mb-1 prose-a:text-accent prose-a:hover:underline">
@@ -467,3 +491,5 @@ export default function DashboardPage() {
   );
 }
 
+
+    
