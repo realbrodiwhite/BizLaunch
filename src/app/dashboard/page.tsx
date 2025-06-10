@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { updateAchievementStatus, getAchievementStatus } from '@/lib/achievementUtils';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card';
 import { Separator } from "@/components/ui/separator";
 import { Input } from '@/components/ui/input'; // For file input styling
 import { toast } from "@/hooks/use-toast";
@@ -123,7 +123,16 @@ const getTaskDetails = (taskId: string, taskActions: TaskActions, task: WizardTa
     );
   }
   switch (taskId) {
-    case 'market-research': return (<div><p className="mb-2">Understand your customers, industry, and competitors. This involves:</p><ul className="list-disc pl-5 space-y-1"><li>Identifying your target audience and their needs.</li><li>Analyzing market size, trends, and growth potential.</li><li>Researching your direct and indirect competitors, their strengths, and weaknesses.</li><li>Explore resources like the <a href="https://www.sba.gov/business-guide/plan-your-business/market-research-competitive-analysis" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA's Market Research Guide <LinkIcon className="inline w-3 h-3"/></a>.</li></ul></div>);
+    case 'market-research': return (
+      <div>
+        <p className="mb-2">Understand your customers, industry, and competitors. This involves:</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Identifying your target audience and their needs.</li>
+          <li>Analyzing market size, trends, and growth potential.</li>
+          <li>Researching your direct and indirect competitors, their strengths, and weaknesses.</li>
+          <li>Explore resources like the <a href="https://www.sba.gov/business-guide/plan-your-business/market-research-competitive-analysis" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA's Market Research Guide <LinkIcon className="inline w-3 h-3"/></a>.</li>
+        </ul>
+      </div>);
     // case 'business-plan': return (<div><p className="mb-2">Create a comprehensive roadmap for your business. Common sections include:</p><ul className="list-disc pl-5 space-y-1"><li><strong>Executive Summary:</strong> A brief overview of your entire plan.</li><li><strong>Company Description:</strong> Detail your business, mission, vision, and legal structure.</li><li><strong>Market Analysis:</strong> Summarize your market research findings.</li><li><strong>Organization and Management:</strong> Outline your business and management structure.</li><li><strong>Service or Product Line:</strong> Describe what you're selling and its benefits.</li><li><strong>Marketing and Sales Strategy:</strong> How you'll reach and sell to customers.</li><li><strong>Funding Request (if applicable):</strong> How much money you need and how it will be used.</li><li><strong>Financial Projections:</strong> Forecasts for revenue, expenses, and profitability.</li><li><strong>Appendix (optional):</strong> Supporting documents like resumes, permits, etc.</li></ul><p className="mt-2">Use templates from <a href="https://www.sba.gov/business-guide/plan-your-business/write-your-business-plan" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA <LinkIcon className="inline w-3 h-3"/></a> or <a href="https://www.score.org/business-plan-templates" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SCORE <LinkIcon className="inline w-3 h-3"/></a>. The AI Business Advisor can help draft sections.</p></div>);
     case 'startup-costs': return (<div><p className="mb-2">Estimate the initial investment needed to launch. Consider costs like:</p><ul className="list-disc pl-5 space-y-1"><li>Office space (rent, utilities)</li><li>Equipment and supplies</li><li>Initial inventory</li><li>Licenses and permits</li><li>Insurance</li><li>Marketing and advertising (website, initial campaigns)</li><li>Salaries (if applicable)</li><li>Legal and professional fees</li></ul><p className="mt-2">The <a href="https://www.sba.gov/business-guide/plan-your-business/calculate-your-startup-costs" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA <LinkIcon className="inline w-3 h-3"/></a> offers guidance. Our AI Advisor can also help estimate costs.</p></div>);
     case 'business-credit': return (<div><p className="mb-2">Establishing business credit is crucial for securing loans, getting favorable terms from suppliers, and separating your personal and business finances. Aim to:</p><ul className="list-disc pl-5 space-y-1"><li><strong>Understand Creditworthiness:</strong> Learn what factors contribute to a good business credit score.</li><li><strong>Register Your Business:</strong> Formally establish your business entity.</li><li><strong>Open a Business Bank Account:</strong> Keep business finances separate.</li><li><strong>Get an EIN:</strong> Obtain an Employer Identification Number from the IRS, even if you don't have employees.</li><li><strong>Establish Trade Lines:</strong> Work with vendors and suppliers who report payments to business credit bureaus.</li><li><strong>Monitor Your Credit:</strong> Regularly check your business credit reports for accuracy.</li></ul><p className="mt-2">Read more at the <a href="https://www.sba.gov/business-guide/launch-your-business/establish-business-credit" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">SBA's guide to establishing business credit <LinkIcon className="inline w-3 h-3"/></a>.</p></div>);
@@ -491,3 +500,5 @@ export default function DashboardPage() {
   );
 }
 
+
+    
