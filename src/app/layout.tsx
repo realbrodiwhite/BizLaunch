@@ -1,8 +1,10 @@
+
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/toaster';
+import { UserTypeSwitcher } from '@/components/UserTypeSwitcher'; // Import the new component
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -30,6 +32,8 @@ export default function RootLayout({
         <SidebarProvider>
           {children}
           <Toaster />
+          {/* Add the UserTypeSwitcher here so it's on all pages */}
+          {process.env.NODE_ENV === 'development' && <UserTypeSwitcher />}
         </SidebarProvider>
       </body>
     </html>
