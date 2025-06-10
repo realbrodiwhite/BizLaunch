@@ -20,7 +20,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal, Search, Link as LinkIcon, Presentation, FileText as FileTextIcon, MessageSquareQuote, Mail, Send } from "lucide-react";
-import { generateBusinessPlanDraft } from '@/ai/flows/business-plan-generator';
+import { generateBusinessPlanSection, type GenerateSectionInput, type GenerateSectionOutput } from '@/ai/flows/business-plan-generator';
 import { estimateStartupCosts } from '@/ai/flows/startup-cost-estimator';
 import { summarizeMarketResearch } from '@/ai/flows/market-research-summary';
 import { generateBusinessNames } from '@/ai/flows/business-name-generator';
@@ -163,9 +163,15 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
       let result;
        switch (data.queryType) {
         case 'business_plan':
-           if (!data.details) throw new Error("Business description is required for plan generation.");
-          result = await generateBusinessPlanDraft({ businessDescription: data.details });
-          setAiResponse({type: "text", content: result.businessPlanDraft});
+          if (!data.details) throw new Error("Business description (overall concept) is required.");
+          // For the AI Advisor, this will now generate the Executive Summary as a starting point
+          result = await generateBusinessPlanSection({
+            overallBusinessConcept: data.details,
+            sectionName: "Executive Summary", // Defaulting to Executive Summary
+            // existingContent is not provided here for a new draft from the advisor
+            completedTasksContext: context, 
+          });
+          setAiResponse({ type: "text", content: result.generatedContent });
           break;
         case 'cost_estimation':
           if (!data.businessType || !data.location) throw new Error("Business type and location are required for cost estimation.");
@@ -281,8 +287,8 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
       switch (queryType) {
         case 'business_plan':
           return completedTaskLabels.includes(businessPlanTaskLabel)
-            ? "Your 'Write your business plan' task is complete. How can I help refine it? E.g., 'Help me strengthen the executive summary' or 'Review my financial projections section'."
-            : "Describe your business idea, mission, products/services, target market, etc., to generate a business plan draft.";
+            ? "You've started your business plan. Provide your overall business concept to generate a starting Executive Summary, or to refine a specific section using the Interactive Business Plan tool."
+            : "Describe your business idea, mission, products/services, target market, etc., to generate an Executive Summary draft.";
         case 'cost_estimation':
           return completedTaskLabels.includes(startupCostsTaskLabel)
             ? "You've calculated startup costs. Need help finding funding options based on these costs, or perhaps a review of your cost breakdown?"
@@ -560,7 +566,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="business_plan">Generate Business Plan Draft</SelectItem>
+                      <SelectItem value="business_plan">Generate Executive Summary Draft</SelectItem>
                       <SelectItem value="cost_estimation">Estimate Startup Costs</SelectItem>
                       <SelectItem value="market_research">Summarize Market Research</SelectItem>
                       <SelectItem value="name_generation">Generate Business Names</SelectItem>
@@ -583,7 +589,7 @@ export function AIBusinessAdvisor({ allTasks }: AIBusinessAdvisorProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    {queryType === 'business_plan' ? "Business Description / Plan Section to Refine" :
+                    {queryType === 'business_plan' ? "Overall Business Concept / Idea" :
                      queryType === 'grant_finder' ? "Detailed Business Description for Grant Search" :
                      queryType === 'cost_estimation' ? "Business Details for Cost Estimation" :
                      queryType === 'pitch_deck_creator' ? "Overall Business Description/Mission" :
