@@ -5,9 +5,9 @@ import React, { useState, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from '@/components/ui/label';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, UserCog } from 'lucide-react'; // Added UserCog for Admin
 
-const USER_TYPES = ["Free", "Pro", "Business", "Enterprise"] as const;
+const USER_TYPES = ["Free", "Pro", "Business", "Enterprise", "Admin"] as const; // Added Admin
 type UserType = typeof USER_TYPES[number];
 const LOCAL_STORAGE_KEY = "bizlaunch_simulatedUserType";
 
@@ -43,7 +43,7 @@ export function UserTypeSwitcher() {
     <Card className="fixed bottom-4 right-4 z-50 shadow-2xl w-64 bg-background border-primary print:hidden">
       <CardContent className="p-3">
         <div className="flex items-center gap-2 mb-2">
-          <ShieldAlert className="w-5 h-5 text-accent" />
+          {currentUserType === "Admin" ? <UserCog className="w-5 h-5 text-destructive" /> : <ShieldAlert className="w-5 h-5 text-accent" />}
           <Label htmlFor="userTypeSelect" className="text-sm font-semibold text-foreground">Simulated User Type:</Label>
         </div>
         <Select value={currentUserType} onValueChange={handleUserTypeChange}>
@@ -53,7 +53,7 @@ export function UserTypeSwitcher() {
           <SelectContent>
             {USER_TYPES.map((type) => (
               <SelectItem key={type} value={type} className="text-sm">
-                {type}
+                {type === "Admin" ? <div className="flex items-center gap-2"><UserCog className="w-4 h-4 text-destructive" /> {type}</div> : type}
               </SelectItem>
             ))}
           </SelectContent>
@@ -65,3 +65,4 @@ export function UserTypeSwitcher() {
     </Card>
   );
 }
+
