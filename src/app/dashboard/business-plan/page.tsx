@@ -4,16 +4,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input"; // Added for team member inputs
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Brain, Save, FolderOpen, Printer, Loader2, Wand2, Undo2, Redo2 } from 'lucide-react'; // Added Undo2, Redo2
+import { Brain, Save, FolderOpen, Printer, Loader2, Wand2, Undo2, Redo2, UserPlus, Trash2, Users } from 'lucide-react'; // Added UserPlus, Trash2, Users
 import { toast } from "@/hooks/use-toast";
 import { generateBusinessPlanSection, type GenerateSectionInput, type GenerateSectionOutput } from '@/ai/flows/business-plan-generator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator'; // Added for visual separation
 
 const BUSINESS_PLAN_STORAGE_KEY = 'bizlaunch_interactiveBusinessPlan_v2';
 const MAX_UNDO_REDO_STEPS = 10;
+
+interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+}
 
 interface BusinessPlanSection {
   id: string;
@@ -22,9 +31,10 @@ interface BusinessPlanSection {
   placeholder: string;
   undoStack: string[];
   redoStack: string[];
+  teamMembers?: TeamMember[]; // Optional: only for Organization and Management section
 }
 
-const initialSectionsData: Omit<BusinessPlanSection, 'undoStack' | 'redoStack'>[] = [
+const initialSectionsData: Omit<BusinessPlanSection, 'undoStack' | 'redoStack' | 'teamMembers'>[] = [
   { id: 'executiveSummary', title: 'Executive Summary', content: '', placeholder: 'Provide a brief overview of your entire business plan...' },
   { id: 'companyDescription', title: 'Company Description', content: '', placeholder: 'Detail your business, mission, vision, legal structure, and objectives...' },
   { id: 'marketAnalysis', title: 'Market Analysis', content: '', placeholder: 'Describe your target market, industry trends, and competitive landscape...' },
@@ -40,6 +50,7 @@ const initialSections: BusinessPlanSection[] = initialSectionsData.map(section =
   ...section,
   undoStack: [],
   redoStack: [],
+  teamMembers: section.id === 'organizationManagement' ? [] : undefined,
 }));
 
 export default function InteractiveBusinessPlanPage() {
@@ -52,11 +63,11 @@ export default function InteractiveBusinessPlanPage() {
     setSections(prevSections =>
       prevSections.map(section => {
         if (section.id === id) {
-          if (section.content === newContent) { // No actual change
+          if (section.content === newContent) {
             return section;
           }
           const newUndoStack = [section.content, ...section.undoStack].slice(0, MAX_UNDO_REDO_STEPS);
-          return { ...section, content: newContent, undoStack: newUndoStack, redoStack: [] }; // Clear redo stack on new edit
+          return { ...section, content: newContent, undoStack: newUndoStack, redoStack: [] };
         }
         return section;
       })
@@ -68,8 +79,8 @@ export default function InteractiveBusinessPlanPage() {
       prevSections.map(section => {
         if (section.id === sectionId && section.undoStack.length > 0) {
           const newUndoStack = [...section.undoStack];
-          const contentToRestore = newUndoStack.shift()!; // Pop from undo
-          const newRedoStack = [section.content, ...section.redoStack].slice(0, MAX_UNDO_REDO_STEPS); // Push current to redo
+          const contentToRestore = newUndoStack.shift()!;
+          const newRedoStack = [section.content, ...section.redoStack].slice(0, MAX_UNDO_REDO_STEPS);
           return { ...section, content: contentToRestore, undoStack: newUndoStack, redoStack: newRedoStack };
         }
         return section;
@@ -83,8 +94,8 @@ export default function InteractiveBusinessPlanPage() {
       prevSections.map(section => {
         if (section.id === sectionId && section.redoStack.length > 0) {
           const newRedoStack = [...section.redoStack];
-          const contentToRestore = newRedoStack.shift()!; // Pop from redo
-          const newUndoStack = [section.content, ...section.undoStack].slice(0, MAX_UNDO_REDO_STEPS); // Push current to undo
+          const contentToRestore = newRedoStack.shift()!;
+          const newUndoStack = [section.content, ...section.undoStack].slice(0, MAX_UNDO_REDO_STEPS);
           return { ...section, content: contentToRestore, undoStack: newUndoStack, redoStack: newRedoStack };
         }
         return section;
@@ -93,6 +104,44 @@ export default function InteractiveBusinessPlanPage() {
     toast({ title: "Redo Successful", description: `Content for "${sections.find(s => s.id === sectionId)?.title}" has been restored.` });
   };
 
+  const handleAddTeamMember = (sectionId: string) => {
+    setSections(prevSections =>
+      prevSections.map(section => {
+        if (section.id === sectionId && section.id === 'organizationManagement') {
+          const newTeamMember: TeamMember = { id: Date.now().toString(), name: '', role: '', bio: '' };
+          const updatedTeamMembers = [...(section.teamMembers || []), newTeamMember];
+          return { ...section, teamMembers: updatedTeamMembers };
+        }
+        return section;
+      })
+    );
+  };
+
+  const handleRemoveTeamMember = (sectionId: string, teamMemberId: string) => {
+    setSections(prevSections =>
+      prevSections.map(section => {
+        if (section.id === sectionId && section.teamMembers) {
+          const updatedTeamMembers = section.teamMembers.filter(member => member.id !== teamMemberId);
+          return { ...section, teamMembers: updatedTeamMembers };
+        }
+        return section;
+      })
+    );
+  };
+
+  const handleTeamMemberChange = (sectionId: string, teamMemberId: string, field: keyof TeamMember, value: string) => {
+    setSections(prevSections =>
+      prevSections.map(section => {
+        if (section.id === sectionId && section.teamMembers) {
+          const updatedTeamMembers = section.teamMembers.map(member =>
+            member.id === teamMemberId ? { ...member, [field]: value } : member
+          );
+          return { ...section, teamMembers: updatedTeamMembers };
+        }
+        return section;
+      })
+    );
+  };
 
   const saveToLocalStorage = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -117,21 +166,35 @@ export default function InteractiveBusinessPlanPage() {
           if (parsedData.sections) {
             const updatedSections = initialSectionsData.map(initSection => {
               const savedSection = parsedData.sections.find((s: BusinessPlanSection) => s.id === initSection.id);
-              return savedSection 
-                ? { ...initSection, content: savedSection.content, undoStack: savedSection.undoStack || [], redoStack: savedSection.redoStack || [] } 
-                : { ...initSection, undoStack: [], redoStack: [] };
+              return {
+                ...initSection,
+                content: savedSection?.content || '',
+                undoStack: savedSection?.undoStack || [],
+                redoStack: savedSection?.redoStack || [],
+                teamMembers: initSection.id === 'organizationManagement' ? (savedSection?.teamMembers || []) : undefined,
+              };
             });
             setSections(updatedSections);
           }
           toast({ title: "Plan Loaded!", description: "Your business plan has been loaded from your browser." });
         } else {
           toast({ title: "No Saved Plan", description: "No saved business plan found. Starting fresh!" });
-          setSections(initialSectionsData.map(section => ({ ...section, undoStack: [], redoStack: [] })));
+          setSections(initialSectionsData.map(section => ({
+             ...section,
+             undoStack: [],
+             redoStack: [],
+             teamMembers: section.id === 'organizationManagement' ? [] : undefined,
+            })));
         }
       } catch (error) {
         console.error("Error loading from localStorage:", error);
         toast({ variant: "destructive", title: "Load Failed", description: "Could not load your plan." });
-        setSections(initialSectionsData.map(section => ({ ...section, undoStack: [], redoStack: [] })));
+        setSections(initialSectionsData.map(section => ({
+          ...section,
+          undoStack: [],
+          redoStack: [],
+          teamMembers: section.id === 'organizationManagement' ? [] : undefined,
+         })));
       }
     }
   }, []);
@@ -147,14 +210,20 @@ export default function InteractiveBusinessPlanPage() {
 
     setIsLoadingAI(prev => ({ ...prev, [sectionId]: true }));
     try {
+      // For "Organization and Management", we might want to pass teamMembers data to the AI
+      // This is a placeholder for now; the Genkit flow would need to be updated to accept this
+      let additionalContext = "";
+      if (section.id === 'organizationManagement' && section.teamMembers && section.teamMembers.length > 0) {
+        additionalContext = "\n\nKey Team Members:\n" + section.teamMembers.map(tm => `- ${tm.name} (${tm.role}): ${tm.bio}`).join("\n");
+      }
+
       const input: GenerateSectionInput = {
         overallBusinessConcept: overallConcept,
         sectionName: section.title as any, // Ensure enum matches title
-        existingContent: section.content,
+        existingContent: section.content + additionalContext, // Append team member info if relevant
       };
       const result: GenerateSectionOutput = await generateBusinessPlanSection(input);
       
-      // When AI updates content, push current content to undo stack
       setSections(prevSections =>
         prevSections.map(s => {
           if (s.id === sectionId) {
@@ -187,7 +256,7 @@ export default function InteractiveBusinessPlanPage() {
             <Wand2 /> Interactive Business Plan Builder
           </CardTitle>
           <CardDescription>
-            Craft your business plan section by section with AI assistance. Save your progress and undo/redo edits!
+            Craft your business plan section by section with AI assistance. Save your progress and manage versions!
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -222,15 +291,16 @@ export default function InteractiveBusinessPlanPage() {
                       placeholder={section.placeholder}
                       value={section.content}
                       onChange={(e) => handleSectionContentChange(section.id, e.target.value)}
-                      className="min-h-[200px] text-sm"
+                      className="min-h-[150px] text-sm"
                       aria-label={`${section.title} content`}
                     />
                     <div className="flex flex-wrap gap-2 items-center">
                         <Button 
                           onClick={() => handleAIAssist(section.id)} 
-                          disabled={isLoadingAI[section.id]}
+                          disabled={isLoadingAI[section.id] || !overallConcept.trim()}
                           size="sm"
                           className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                          title={!overallConcept.trim() ? "Please enter Overall Business Concept first" : "Get AI assistance"}
                         >
                           {isLoadingAI[section.id] ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -256,6 +326,70 @@ export default function InteractiveBusinessPlanPage() {
                             <Redo2 className="mr-2 h-4 w-4" /> Redo ({section.redoStack?.length || 0})
                         </Button>
                     </div>
+
+                    {/* Structured Input for Team Members in Organization & Management */}
+                    {section.id === 'organizationManagement' && (
+                      <div className="mt-6 pt-4 border-t">
+                        <h4 className="text-md font-semibold mb-3 text-foreground flex items-center">
+                          <Users className="mr-2 h-5 w-5 text-primary"/> Key Team Members
+                        </h4>
+                        {section.teamMembers && section.teamMembers.map((member, index) => (
+                          <Card key={member.id} className="mb-4 p-4 bg-secondary/30">
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <FormItem>
+                                  <label htmlFor={`teamName-${member.id}`} className="text-xs font-medium text-muted-foreground">Name</label>
+                                  <Input
+                                    id={`teamName-${member.id}`}
+                                    value={member.name}
+                                    onChange={(e) => handleTeamMemberChange(section.id, member.id, 'name', e.target.value)}
+                                    placeholder="Team Member Name"
+                                    className="text-sm"
+                                  />
+                                </FormItem>
+                                <FormItem>
+                                  <label htmlFor={`teamRole-${member.id}`} className="text-xs font-medium text-muted-foreground">Role/Title</label>
+                                  <Input
+                                    id={`teamRole-${member.id}`}
+                                    value={member.role}
+                                    onChange={(e) => handleTeamMemberChange(section.id, member.id, 'role', e.target.value)}
+                                    placeholder="Role or Title"
+                                    className="text-sm"
+                                  />
+                                </FormItem>
+                              </div>
+                              <FormItem>
+                                <label htmlFor={`teamBio-${member.id}`} className="text-xs font-medium text-muted-foreground">Brief Bio/Experience</label>
+                                <Textarea
+                                  id={`teamBio-${member.id}`}
+                                  value={member.bio}
+                                  onChange={(e) => handleTeamMemberChange(section.id, member.id, 'bio', e.target.value)}
+                                  placeholder="Brief bio, key experience, or responsibilities"
+                                  rows={3}
+                                  className="text-sm min-h-[60px]"
+                                />
+                              </FormItem>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveTeamMember(section.id, member.id)}
+                                className="text-destructive hover:bg-destructive/10 hover:text-destructive self-start"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Remove Team Member
+                              </Button>
+                            </div>
+                          </Card>
+                        ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAddTeamMember(section.id)}
+                          className="mt-2"
+                        >
+                          <UserPlus className="mr-2 h-4 w-4" /> Add Team Member
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -281,10 +415,24 @@ export default function InteractiveBusinessPlanPage() {
                 </section>
               )}
               {sections.map((section) => (
-                section.content.trim() && (
+                (section.content.trim() || (section.id === 'organizationManagement' && section.teamMembers && section.teamMembers.length > 0)) && (
                   <section key={section.id}>
                     <h2 className="text-lg font-semibold mb-2 border-b pb-1 text-foreground">{section.title}</h2>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{section.content}</p>
+                    {section.content.trim() && <p className="text-sm text-muted-foreground whitespace-pre-wrap mb-3">{section.content}</p>}
+                    
+                    {section.id === 'organizationManagement' && section.teamMembers && section.teamMembers.length > 0 && (
+                      <div className="mt-3">
+                        <h3 className="text-md font-semibold mb-2 text-foreground">Key Team Members:</h3>
+                        {section.teamMembers.map(member => (
+                          member.name.trim() && ( // Only display if member has a name
+                            <div key={member.id} className="mb-2 pl-2 border-l-2 border-muted">
+                              <h4 className="text-sm font-semibold text-foreground">{member.name} - <span className="font-normal text-muted-foreground">{member.role}</span></h4>
+                              {member.bio.trim() && <p className="text-xs text-muted-foreground whitespace-pre-wrap">{member.bio}</p>}
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    )}
                   </section>
                 )
               ))}
@@ -322,6 +470,5 @@ export default function InteractiveBusinessPlanPage() {
     </div>
   );
 }
-    
 
     
