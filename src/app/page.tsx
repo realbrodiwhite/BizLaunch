@@ -1,16 +1,21 @@
+"use client";
 
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Rocket, Brain, Trophy, LogIn, UserPlus, CheckCircle, Zap, Users, Building } from 'lucide-react';
+import React, { useState } from 'react';
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export default function LandingPage() {
+  const [isAnnual, setIsAnnual] = useState(false);
+
   const pricingTiers = [
     {
-      name: "Free",
-      price: "$0",
-      frequency: "/month",
+      name: "Side Hustle",
+      monthlyPrice: 0,
       description: "Get started with essential tools to plan your business.",
       features: [
         "Basic Wizard Access (Plan Stage)",
@@ -18,15 +23,14 @@ export default function LandingPage() {
         "Track 5 Achievements",
         "Community Support",
       ],
-      cta: "Get Started",
-      href: "/auth/signup",
+      cta: "Get Started Free",
+      href: "/auth/signup?plan=side-hustle",
       icon: <Rocket className="w-6 h-6 mb-2 text-primary" />,
       popular: false,
     },
     {
-      name: "Pro",
-      price: "$29.99",
-      frequency: "/month",
+      name: "Solopreneur",
+      monthlyPrice: 29.99,
       description: "Unlock more tools and AI power for growing businesses.",
       features: [
         "Full Wizard Access (All Stages)",
@@ -35,41 +39,39 @@ export default function LandingPage() {
         "File Uploads for Key Tasks",
         "Email Support",
       ],
-      cta: "Choose Pro",
-      href: "/auth/signup?plan=pro",
+      cta: "Choose Solopreneur",
+      href: "/auth/signup?plan=solopreneur",
       icon: <Zap className="w-6 h-6 mb-2 text-accent" />,
       popular: true,
     },
     {
-      name: "Business",
-      price: "$99.99",
-      frequency: "/month",
-      description: "Advanced features for scaling your operations.",
+      name: "Small Business Plan",
+      monthlyPrice: 99.99,
+      description: "Advanced features and collaboration for scaling your operations.",
       features: [
-        "All Pro Features",
+        "All Solopreneur Features",
         "Priority AI Advisor Queries",
         "Advanced AI Tools (e.g., In-depth Analysis)",
-        "Team Member Access (coming soon)",
+        "Team Member Access (up to 5 users - coming soon)",
         "Priority Support",
       ],
-      cta: "Choose Business",
-      href: "/auth/signup?plan=business",
+      cta: "Choose Small Business",
+      href: "/auth/signup?plan=small-business",
       icon: <Users className="w-6 h-6 mb-2 text-primary" />,
       popular: false,
     },
     {
-      name: "Enterprise",
-      price: "Custom",
-      frequency: "",
-      description: "Tailored solutions for large organizations.",
+      name: "Corporate Enterprises",
+      monthlyPrice: null, // Custom pricing
+      description: "Tailored solutions for large organizations and specific needs.",
       features: [
-        "All Business Features",
+        "All Small Business Plan Features",
         "Dedicated Account Manager",
-        "Custom AI Model Integrations",
-        "Volume Discounts",
+        "Custom AI Model Integrations & Workflows",
+        "Volume Discounts & Scalable Infrastructure",
         "SLA & Premium Support",
       ],
-      cta: "Contact Us",
+      cta: "Contact Sales",
       href: "mailto:sales@bizlaunch.example.com",
       icon: <Building className="w-6 h-6 mb-2 text-foreground" />,
       popular: false,
@@ -167,40 +169,74 @@ export default function LandingPage() {
             <h3 className="text-3xl sm:text-4xl font-bold text-center text-foreground mb-4">
               Find the Perfect Plan
             </h3>
-            <p className="text-md sm:text-lg text-muted-foreground text-center max-w-2xl mx-auto mb-12 sm:mb-16 md:mb-20">
+            <p className="text-md sm:text-lg text-muted-foreground text-center max-w-2xl mx-auto mb-8">
               Choose the plan that best suits your business needs and budget. Start for free or unlock powerful premium features.
             </p>
+            <div className="flex justify-center items-center space-x-3 mb-12 sm:mb-16 md:mb-20">
+              <Label htmlFor="pricing-toggle" className={`text-sm font-medium ${!isAnnual ? 'text-accent' : 'text-muted-foreground'}`}>Monthly</Label>
+              <Switch
+                id="pricing-toggle"
+                checked={isAnnual}
+                onCheckedChange={setIsAnnual}
+                aria-label="Toggle pricing frequency"
+              />
+              <Label htmlFor="pricing-toggle" className={`text-sm font-medium ${isAnnual ? 'text-accent' : 'text-muted-foreground'}`}>
+                Annually <span className="text-xs text-green-600 font-semibold">(Save ~17%)</span>
+              </Label>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-              {pricingTiers.map((tier) => (
-                <Card key={tier.name} className={`flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 rounded-xl overflow-hidden ${tier.popular ? 'border-2 border-accent ring-2 ring-accent/30' : 'border-border'}`}>
-                  <CardHeader className="items-center text-center p-6 bg-secondary/30">
-                    {tier.icon}
-                    <CardTitle className="text-xl sm:text-2xl">{tier.name}</CardTitle>
-                    <div className="text-3xl sm:text-4xl font-bold text-foreground mt-2">
-                      {tier.price}
-                      {tier.frequency && <span className="text-sm font-normal text-muted-foreground">{tier.frequency}</span>}
-                    </div>
-                    <CardDescription className="text-xs sm:text-sm mt-1 h-10">{tier.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6 flex-grow">
-                    <ul className="space-y-3 text-sm text-muted-foreground">
-                      {tier.features.map((feature, index) => (
-                        <li key={index} className="flex items-center">
-                          <CheckCircle className="w-4 h-4 mr-2 text-green-500 flex-shrink-0" />
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                  <CardFooter className="p-6 mt-auto">
-                    <Link href={tier.href} className="w-full">
-                      <Button size="lg" className={`w-full ${tier.popular ? 'bg-accent hover:bg-accent/90 text-accent-foreground' : 'bg-primary hover:bg-primary/90 text-primary-foreground'}`}>
-                        {tier.cta}
-                      </Button>
-                    </Link>
-                  </CardFooter>
-                </Card>
-              ))}
+              {pricingTiers.map((tier) => {
+                let displayPrice: string;
+                let displayFrequency: string;
+                let priceNote: string | null = null;
+
+                if (tier.monthlyPrice === 0) {
+                  displayPrice = "$0";
+                  displayFrequency = "/month";
+                } else if (tier.monthlyPrice === null) {
+                  displayPrice = "Custom";
+                  displayFrequency = "";
+                } else if (isAnnual) {
+                  displayPrice = `$${(tier.monthlyPrice * 10).toFixed(2)}`; // 2 months free
+                  displayFrequency = "/year";
+                  priceNote = "Billed annually";
+                } else {
+                  displayPrice = `$${tier.monthlyPrice.toFixed(2)}`;
+                  displayFrequency = "/month";
+                }
+
+                return (
+                  <Card key={tier.name} className={`flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 rounded-xl overflow-hidden ${tier.popular ? 'border-2 border-accent ring-2 ring-accent/30' : 'border-border'}`}>
+                    <CardHeader className="items-center text-center p-6 bg-secondary/30">
+                      {tier.icon}
+                      <CardTitle className="text-xl sm:text-2xl">{tier.name}</CardTitle>
+                      <div className="text-3xl sm:text-4xl font-bold text-foreground mt-2">
+                        {displayPrice}
+                        {displayFrequency && <span className="text-sm font-normal text-muted-foreground">{displayFrequency}</span>}
+                      </div>
+                      {priceNote && <p className="text-xs text-muted-foreground mt-1">{priceNote}</p>}
+                      <CardDescription className="text-xs sm:text-sm mt-1 h-12 sm:h-10">{tier.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-6 flex-grow">
+                      <ul className="space-y-3 text-sm text-muted-foreground">
+                        {tier.features.map((feature, index) => (
+                          <li key={index} className="flex items-center">
+                            <CheckCircle className="w-4 h-4 mr-2 text-green-500 flex-shrink-0" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                    <CardFooter className="p-6 mt-auto">
+                      <Link href={tier.href + (isAnnual && tier.monthlyPrice !== 0 && tier.monthlyPrice !== null ? '&billing=annual' : '')} className="w-full">
+                        <Button size="lg" className={`w-full ${tier.popular ? 'bg-accent hover:bg-accent/90 text-accent-foreground' : 'bg-primary hover:bg-primary/90 text-primary-foreground'}`}>
+                          {tier.cta}
+                        </Button>
+                      </Link>
+                    </CardFooter>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         </section>
