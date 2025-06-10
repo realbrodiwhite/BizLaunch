@@ -210,8 +210,6 @@ export default function InteractiveBusinessPlanPage() {
 
     setIsLoadingAI(prev => ({ ...prev, [sectionId]: true }));
     try {
-      // For "Organization and Management", we might want to pass teamMembers data to the AI
-      // This is a placeholder for now; the Genkit flow would need to be updated to accept this
       let additionalContext = "";
       if (section.id === 'organizationManagement' && section.teamMembers && section.teamMembers.length > 0) {
         additionalContext = "\n\nKey Team Members:\n" + section.teamMembers.map(tm => `- ${tm.name} (${tm.role}): ${tm.bio}`).join("\n");
@@ -219,8 +217,9 @@ export default function InteractiveBusinessPlanPage() {
 
       const input: GenerateSectionInput = {
         overallBusinessConcept: overallConcept,
-        sectionName: section.title as any, // Ensure enum matches title
-        existingContent: section.content + additionalContext, // Append team member info if relevant
+        sectionName: section.title as any, 
+        existingContent: section.content + additionalContext, 
+        completedTasksContext: 'User is working on their business plan using the interactive builder.' // Generic context
       };
       const result: GenerateSectionOutput = await generateBusinessPlanSection(input);
       
@@ -280,10 +279,10 @@ export default function InteractiveBusinessPlanPage() {
           </div>
 
           <Accordion type="multiple" className="w-full space-y-4">
-            {sections.map((section) => (
+            {sections.map((section, index) => (
               <AccordionItem value={section.id} key={section.id} className="border rounded-lg bg-card overflow-hidden">
                 <AccordionTrigger className="px-4 py-3 hover:no-underline text-left text-primary font-semibold">
-                  {section.title}
+                  Step {index + 1}: {section.title}
                 </AccordionTrigger>
                 <AccordionContent className="p-4 border-t bg-background">
                   <div className="space-y-3">
@@ -327,13 +326,12 @@ export default function InteractiveBusinessPlanPage() {
                         </Button>
                     </div>
 
-                    {/* Structured Input for Team Members in Organization & Management */}
                     {section.id === 'organizationManagement' && (
                       <div className="mt-6 pt-4 border-t">
                         <h4 className="text-md font-semibold mb-3 text-foreground flex items-center">
                           <Users className="mr-2 h-5 w-5 text-primary"/> Key Team Members
                         </h4>
-                        {section.teamMembers && section.teamMembers.map((member, index) => (
+                        {section.teamMembers && section.teamMembers.map((member, memberIndex) => (
                           <Card key={member.id} className="mb-4 p-4 bg-secondary/30">
                             <div className="space-y-3">
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -414,17 +412,17 @@ export default function InteractiveBusinessPlanPage() {
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">{overallConcept}</p>
                 </section>
               )}
-              {sections.map((section) => (
+              {sections.map((section, index) => (
                 (section.content.trim() || (section.id === 'organizationManagement' && section.teamMembers && section.teamMembers.length > 0)) && (
                   <section key={section.id}>
-                    <h2 className="text-lg font-semibold mb-2 border-b pb-1 text-foreground">{section.title}</h2>
+                    <h2 className="text-lg font-semibold mb-2 border-b pb-1 text-foreground">Step {index + 1}: {section.title}</h2>
                     {section.content.trim() && <p className="text-sm text-muted-foreground whitespace-pre-wrap mb-3">{section.content}</p>}
                     
                     {section.id === 'organizationManagement' && section.teamMembers && section.teamMembers.length > 0 && (
                       <div className="mt-3">
                         <h3 className="text-md font-semibold mb-2 text-foreground">Key Team Members:</h3>
                         {section.teamMembers.map(member => (
-                          member.name.trim() && ( // Only display if member has a name
+                          member.name.trim() && ( 
                             <div key={member.id} className="mb-2 pl-2 border-l-2 border-muted">
                               <h4 className="text-sm font-semibold text-foreground">{member.name} - <span className="font-normal text-muted-foreground">{member.role}</span></h4>
                               {member.bio.trim() && <p className="text-xs text-muted-foreground whitespace-pre-wrap">{member.bio}</p>}
