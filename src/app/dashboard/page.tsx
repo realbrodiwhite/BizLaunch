@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { updateAchievementStatus, getAchievementStatus } from '@/lib/achievementUtils';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from "@/components/ui/separator";
 import { Input } from '@/components/ui/input'; // For file input styling
 import { toast } from "@/hooks/use-toast";
@@ -499,6 +499,5 @@ export default function DashboardPage() {
     </div>
   );
 }
-
 
     
